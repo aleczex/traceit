@@ -43,7 +43,11 @@ class LocationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val rangesStr = intent?.getStringExtra("ranges") ?: ""
-        timeRanges = scheduler.parseRanges(rangesStr)
+        timeRanges = if (rangesStr.isNotBlank()) {
+            scheduler.parseRanges(rangesStr)
+        } else {
+            scheduler.loadSchedules(this)
+        }
 
         startForegroundService()
         startLocationUpdates()

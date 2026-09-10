@@ -1,5 +1,6 @@
 package com.aletchec.lokalizator
 
+import android.content.Context
 import java.util.Calendar
 import java.util.Locale
 
@@ -55,6 +56,22 @@ class TrackingScheduler {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    fun saveSchedules(context: Context, ranges: List<TimeRange>) {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().putString("saved_ranges", serializeRanges(ranges)).apply()
+    }
+
+    fun loadSchedules(context: Context): List<TimeRange> {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        val savedStr = sharedPrefs.getString("saved_ranges", null)
+        return if (!savedStr.isNullOrBlank()) {
+            parseRanges(savedStr)
+        } else {
+            // Default initial schedule if none exists
+            listOf(TimeRange(8, 0, 16, 0))
         }
     }
 }

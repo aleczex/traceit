@@ -83,7 +83,11 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scheduler = remember { TrackingScheduler() }
     val gpxManager = remember { GpxManager(context) }
-    val ranges = remember { mutableStateListOf(TrackingScheduler.TimeRange(8, 0, 16, 0)) }
+    val ranges = remember { 
+        mutableStateListOf<TrackingScheduler.TimeRange>().apply {
+            addAll(scheduler.loadSchedules(context))
+        }
+    }
     
     var isServiceRunning by remember { mutableStateOf(value = false) }
     var showTimePicker by remember { mutableStateOf(value = false) }
@@ -133,7 +137,10 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
             items(ranges) { range ->
                 ScheduleItem(
                     range = range,
-                    onDelete = { ranges.remove(range) },
+                    onDelete = { 
+                        ranges.remove(range)
+                        scheduler.saveSchedules(context, ranges)
+                    },
                     onEditStart = {
                         currentRangeIndex = ranges.indexOf(range)
                         pickingStartTime = true
@@ -150,6 +157,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         OutlinedButton(
             onClick = {
                 ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
+                scheduler.saveSchedules(context, ranges)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -267,6 +275,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 } else {
                     oldRange.copy(endHour = hour, endMinute = minute)
                 }
+                scheduler.saveSchedules(context, ranges)
                 showTimePicker = false
             }
         )
