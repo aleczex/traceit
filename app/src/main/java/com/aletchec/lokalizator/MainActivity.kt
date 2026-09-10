@@ -47,7 +47,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,13 +62,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.aletchec.lokalizator.ui.theme.LokalizatorTheme
+import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // osmdroid configuration
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        Configuration.getInstance().userAgentValue = packageName
+
         enableEdgeToEdge()
         setContent {
             LokalizatorTheme {
@@ -113,8 +132,11 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     // Periodically fetch logged points from the GPX file
     LaunchedEffect(isServiceRunning) {
         while (true) {
-            val file = gpxManager.getGpxFile()
-            trackPoints = gpxManager.getTrackPoints(file)
+            val points = withContext(Dispatchers.IO) {
+                val file = gpxManager.getGpxFile()
+                gpxManager.getTrackPoints(file)
+            }
+            trackPoints = points
             delay(5000)
         }
     }
@@ -291,59 +313,80 @@ fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier)
         return
     }
 
-    val minLat = points.minOf { it.latitude }
-    val maxLat = points.maxOf { it.latitude }
-    val minLon = points.minOf { it.longitude }
-    val maxLon = points.maxOf { it.longitude }
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", android.content.Context.MODE_PRIVATE) }
+    var hasCenteredInitially by remember { mutableStateOf(false) }
 
-    val latRange = maxLat - minLat
-    val lonRange = maxLon - minLon
+    AndroidView(
+        factory = { ctx ->
+            MapView(ctx).apply {
+                clipToOutline = true
+                setTileSource(TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.ALWAYS)
 
-    Canvas(
+                val savedZoom = sharedPrefs.getFloat("map_zoom_level", 16.0f).toDouble()
+                controller.setZoom(savedZoom)
+
+                addMapListener(object : MapListener {
+                    override fun onScroll(event: ScrollEvent?): Boolean = false
+                    override fun onZoom(event: ZoomEvent?): Boolean {
+                        val currentZoom = zoomLevelDouble.toFloat()
+                        sharedPrefs.edit { putFloat("map_zoom_level", currentZoom) }
+                        return false
+                    }
+                })
+            }
+        },
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-            .padding(16.dp)
-    ) {
-        val padding = 16.dp.toPx()
-        val width = size.width - 2 * padding
-        val height = size.height - 2 * padding
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+        update = { map ->
+            map.overlays.clear()
 
-        if (points.size == 1 || (latRange == 0.0 && lonRange == 0.0)) {
-            drawCircle(
-                color = Color.Red,
-                radius = 12f,
-                center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
-            )
-        } else {
-            val path = Path()
-            points.forEachIndexed { index, pt ->
-                val x = padding + ((pt.longitude - minLon) / lonRange * width).toFloat()
-                val y = padding + (height - ((pt.latitude - minLat) / latRange * height)).toFloat()
+            if (points.isNotEmpty()) {
+                val geoPoints = points.map { GeoPoint(it.latitude, it.longitude) }
+                
+                // Track line
+                val polyline = Polyline().apply {
+                    setPoints(geoPoints)
+                    outlinePaint.color = android.graphics.Color.BLUE
+                    outlinePaint.strokeWidth = 5f
+                }
+                map.overlays.add(polyline)
 
-                if (index == 0) {
-                    path.moveTo(x, y)
-                } else {
-                    path.lineTo(x, y)
+                // Start marker
+                val startMarker = Marker(map).apply {
+                    position = geoPoints.first()
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = "Start"
+                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                        setTint(android.graphics.Color.GREEN)
+                    }
+                }
+                map.overlays.add(startMarker)
+
+                // End marker
+                val endMarker = Marker(map).apply {
+                    position = geoPoints.last()
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = "Latest Position"
+                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                        setTint(android.graphics.Color.RED)
+                    }
+                }
+                map.overlays.add(endMarker)
+
+                if (!hasCenteredInitially) {
+                    hasCenteredInitially = true
+                    map.post {
+                        map.controller.setCenter(geoPoints.last())
+                    }
                 }
             }
-
-            drawPath(
-                path = path,
-                color = Color(0xFF1E88E5),
-                style = Stroke(width = 6f)
-            )
-
-            // Draw start point (Green)
-            val startX = padding + ((points.first().longitude - minLon) / lonRange * width).toFloat()
-            val startY = padding + (height - ((points.first().latitude - minLat) / latRange * height)).toFloat()
-            drawCircle(color = Color.Green, radius = 10f, center = androidx.compose.ui.geometry.Offset(startX, startY))
-
-            // Draw end point (Red)
-            val endX = padding + ((points.last().longitude - minLon) / lonRange * width).toFloat()
-            val endY = padding + (height - ((points.last().latitude - minLat) / latRange * height)).toFloat()
-            drawCircle(color = Color.Red, radius = 10f, center = androidx.compose.ui.geometry.Offset(endX, endY))
+            map.invalidate()
         }
-    }
+    )
 }
 
 @Composable
