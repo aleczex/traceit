@@ -10,6 +10,8 @@ import java.util.Locale
 
 class GpxManager(private val context: Context) {
 
+    data class TrackPoint(val latitude: Double, val longitude: Double, val elevation: Double, val time: String)
+
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
 
     fun getGpxFile(): File {
@@ -49,5 +51,22 @@ class GpxManager(private val context: Context) {
 
         val newContent = content.replace("</trkseg>", point)
         file.writeText(newContent)
+    }
+
+    fun getTrackPoints(file: File): List<TrackPoint> {
+        if (!file.exists()) return emptyList()
+        val content = file.readText()
+        val points = mutableListOf<TrackPoint>()
+        
+        // Simple and safe matching for our precise format
+        val regex = """<trkpt lat="([^"]+)" lon="([^"]+)">\s*<ele>([^<]+)</ele>\s*<time>([^<]+)</time>""".toRegex()
+        regex.findAll(content).forEach { matchResult ->
+            val lat = matchResult.groupValues[1].toDoubleOrNull() ?: 0.0
+            val lon = matchResult.groupValues[2].toDoubleOrNull() ?: 0.0
+            val ele = matchResult.groupValues[3].toDoubleOrNull() ?: 0.0
+            val time = matchResult.groupValues[4]
+            points.add(TrackPoint(lat, lon, ele, time))
+        }
+        return points
     }
 }

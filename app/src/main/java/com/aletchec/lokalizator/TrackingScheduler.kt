@@ -1,6 +1,7 @@
 package com.aletchec.lokalizator
 
 import java.util.Calendar
+import java.util.Locale
 
 class TrackingScheduler {
 
@@ -26,6 +27,14 @@ class TrackingScheduler {
             }
         }
         return false
+    }
+
+    fun serializeRanges(ranges: List<TimeRange>): String {
+        return ranges.joinToString(", ") {
+            val start = String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute)
+            val end = String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
+            "$start-$end"
+        }
     }
 
     fun parseRanges(input: String): List<TimeRange> {
