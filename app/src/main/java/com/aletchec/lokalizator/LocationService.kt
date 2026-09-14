@@ -56,8 +56,10 @@ class LocationService : Service() {
     }
 
     private fun handleLocationUpdate(location: Location) {
-        if (scheduler.isTrackingAllowed(timeRanges)) {
-            val file = gpxManager.getGpxFile()
+        val currentRanges = scheduler.loadSchedules(this)
+        val activeRange = scheduler.getActiveRange(currentRanges)
+        if (activeRange != null) {
+            val file = gpxManager.getGpxFile(activeRange)
             gpxManager.appendLocation(file, location)
             updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
         } else {

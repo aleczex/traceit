@@ -14,9 +14,23 @@ class GpxManager(private val context: Context) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
 
-    fun getGpxFile(): File {
-        val fileName = "track_${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.gpx"
+    fun getGpxFile(range: TrackingScheduler.TimeRange? = null): File {
+        val dateStr = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
+        val fileName = if (range != null) {
+            val start = String.format(Locale.US, "%02d%02d", range.startHour, range.startMinute)
+            val end = String.format(Locale.US, "%02d%02d", range.endHour, range.endMinute)
+            "track_${dateStr}_${start}_${end}.gpx"
+        } else {
+            "track_${dateStr}.gpx"
+        }
         return File(context.getExternalFilesDir(null), fileName)
+    }
+
+    fun getAllGpxFiles(): List<File> {
+        val dir = context.getExternalFilesDir(null) ?: return emptyList()
+        return dir.listFiles { _, name -> name.startsWith("track_") && name.endsWith(".gpx") }
+            ?.sortedByDescending { it.name }
+            ?.toList() ?: emptyList()
     }
 
     fun initGpxFile(file: File) {

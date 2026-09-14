@@ -9,7 +9,11 @@ class TrackingScheduler {
     data class TimeRange(val startHour: Int, val startMinute: Int, val endHour: Int, val endMinute: Int)
 
     fun isTrackingAllowed(ranges: List<TimeRange>): Boolean {
-        if (ranges.isEmpty()) return true
+        return getActiveRange(ranges) != null
+    }
+
+    fun getActiveRange(ranges: List<TimeRange>): TimeRange? {
+        if (ranges.isEmpty()) return null
 
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
@@ -21,13 +25,13 @@ class TrackingScheduler {
             val endInMinutes = range.endHour * 60 + range.endMinute
 
             if (startInMinutes <= endInMinutes) {
-                if (currentTimeInMinutes in startInMinutes..endInMinutes) return true
+                if (currentTimeInMinutes in startInMinutes..endInMinutes) return range
             } else {
                 // Range spans across midnight
-                if (currentTimeInMinutes >= startInMinutes || currentTimeInMinutes <= endInMinutes) return true
+                if (currentTimeInMinutes >= startInMinutes || currentTimeInMinutes <= endInMinutes) return range
             }
         }
-        return false
+        return null
     }
 
     fun serializeRanges(ranges: List<TimeRange>): String {

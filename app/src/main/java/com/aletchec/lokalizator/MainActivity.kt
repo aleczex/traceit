@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -24,8 +25,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,13 +111,34 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         }
     }
     
-    var isServiceRunning by remember { mutableStateOf(value = false) }
     var showTimePicker by remember { mutableStateOf(value = false) }
     var pickingStartTime by remember { mutableStateOf(value = true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
     
     var selectedTab by remember { mutableIntStateOf(0) }
+    var isTrackingNow by remember { mutableStateOf(false) }
     var trackPoints by remember { mutableStateOf(emptyList<GpxManager.TrackPoint>()) }
+    var selectedFile by remember { mutableStateOf<java.io.File?>(null) }
+    var fileToExport by remember { mutableStateOf<java.io.File?>(null) }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/gpx+xml")
+    ) { uri ->
+        uri?.let { destinationUri ->
+            fileToExport?.let { srcFile ->
+                try {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
+                        srcFile.inputStream().use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    Toast.makeText(context, "Track saved successfully", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to save track: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     val permissionsToRequest = mutableListOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -129,11 +153,39 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> }
 
-    // Periodically fetch logged points from the GPX file
-    LaunchedEffect(isServiceRunning) {
+    var hasRequestedPermissions by remember { mutableStateOf(false) }
+
+    // Periodically fetch logged points and update status
+    LaunchedEffect(selectedFile, ranges.size) {
         while (true) {
+            val isAllowed = scheduler.isTrackingAllowed(ranges)
+            isTrackingNow = isAllowed
+
+            // Auto-start service if not running and tracking is allowed
+            val allGranted = permissionsToRequest.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+            if (isAllowed) {
+                if (allGranted) {
+                    val intent = Intent(context, LocationService::class.java).apply {
+                        putExtra("ranges", scheduler.serializeRanges(ranges))
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } else if (!hasRequestedPermissions) {
+                    launcher.launch(permissionsToRequest.toTypedArray())
+                    hasRequestedPermissions = true
+                }
+            }
+
             val points = withContext(Dispatchers.IO) {
-                val file = gpxManager.getGpxFile()
+                val file = selectedFile ?: run {
+                    val activeRange = scheduler.getActiveRange(ranges)
+                    gpxManager.getGpxFile(activeRange)
+                }
                 gpxManager.getTrackPoints(file)
             }
             trackPoints = points
@@ -190,60 +242,57 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = {
-                    val allGranted = permissionsToRequest.all {
-                        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-                    }
-
-                    if (allGranted) {
-                        val intent = Intent(context, LocationService::class.java).apply {
-                            putExtra("ranges", scheduler.serializeRanges(ranges))
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(intent)
-                        } else {
-                            context.startService(intent)
-                        }
-                        isServiceRunning = true
-                    } else {
-                        launcher.launch(permissionsToRequest.toTypedArray())
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !isServiceRunning
-            ) {
-                Text("Start Tracking")
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Button(
-                onClick = {
-                    context.stopService(Intent(context, LocationService::class.java))
-                    isServiceRunning = false
-                },
-                modifier = Modifier.weight(1f),
-                enabled = isServiceRunning
-            ) {
-                Text("Stop Tracking")
-            }
+        // Tracking Status Indicator
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isTrackingNow) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
+                )
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isTrackingNow) "● TRACKING ACTIVE" else "○ OUTSIDE SCHEDULE",
+                color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
+                style = MaterialTheme.typography.titleMedium
+            )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (isServiceRunning) "Status: Running" else "Status: Stopped",
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Column {
+                Text(
+                    text = if (selectedFile != null) {
+                        "Viewing: ${selectedFile?.name?.substringAfter("track_")?.substringBefore(".gpx") ?: ""}"
+                    } else {
+                        val activeRange = scheduler.getActiveRange(ranges)
+                        if (activeRange != null) {
+                            String.format(Locale.US, "Active Range: %02d:%02d-%02d:%02d", activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
+                        } else {
+                            "No active schedule"
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
+            if (selectedFile != null) {
+                TextButton(onClick = { selectedFile = null }) {
+                    Text("Show Active")
+                }
+            }
             TextButton(onClick = {
-                val file = gpxManager.getGpxFile()
+                val file = selectedFile ?: run {
+                    val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
+                    gpxManager.getGpxFile(activeRange)
+                }
                 trackPoints = gpxManager.getTrackPoints(file)
             }) {
                 Text("Refresh Data")
@@ -264,6 +313,11 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 onClick = { selectedTab = 1 },
                 text = { Text("Points List (${trackPoints.size})") }
             )
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                text = { Text("Saved Tracks") }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -273,10 +327,27 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            if (selectedTab == 0) {
-                TrackMap(points = trackPoints, modifier = Modifier.fillMaxSize())
-            } else {
-                TrackPointsList(points = trackPoints, modifier = Modifier.fillMaxSize())
+            when (selectedTab) {
+                0 -> TrackMap(points = trackPoints, modifier = Modifier.fillMaxSize())
+                1 -> TrackPointsList(points = trackPoints, modifier = Modifier.fillMaxSize())
+                2 -> SavedTracksList(
+                    gpxManager = gpxManager,
+                    scheduler = scheduler,
+                    onSelectFile = { file ->
+                        selectedFile = file
+                        selectedTab = 0
+                    },
+                    onDeleteFile = { file ->
+                        if (selectedFile == file) {
+                            selectedFile = null
+                        }
+                    },
+                    onExportFile = { file ->
+                        fileToExport = file
+                        createDocumentLauncher.launch(file.name)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }
@@ -299,6 +370,155 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 }
                 scheduler.saveSchedules(context, ranges)
                 showTimePicker = false
+            }
+        )
+    }
+
+    // No longer need showStopTrackingConfirmation dialog
+}
+
+@Composable
+fun SavedTracksList(
+    gpxManager: GpxManager,
+    scheduler: TrackingScheduler,
+    onSelectFile: (java.io.File) -> Unit,
+    onDeleteFile: (java.io.File) -> Unit,
+    onExportFile: (java.io.File) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var files by remember { mutableStateOf(emptyList<java.io.File>()) }
+    var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
+    val context = LocalContext.current
+    val ranges = remember { scheduler.loadSchedules(context) }
+    
+    LaunchedEffect(fileToDelete == null) {
+        files = gpxManager.getAllGpxFiles()
+    }
+
+    if (files.isEmpty()) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Text("No saved tracks found.", style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
+
+    LazyColumn(modifier = modifier) {
+        items(files) { file ->
+            val activeRange = scheduler.getActiveRange(ranges)
+            val isActiveFile = file.absolutePath == gpxManager.getGpxFile(activeRange).absolutePath
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .background(
+                        if (isActiveFile) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.surfaceVariant, 
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    val name = file.name.replace("track_", "").replace(".gpx", "")
+                    val formattedName = try {
+                        val parts = name.split("_")
+                        if (parts.size == 3) {
+                            val dateStr = parts[0] // YYYYMMDD
+                            val startStr = parts[1] // HHMM
+                            val endStr = parts[2] // HHMM
+                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
+                        } else if (parts.size == 1 && parts[0].length == 8) {
+                            val dateStr = parts[0]
+                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
+                        } else {
+                            file.name
+                        }
+                    } catch (e: Exception) {
+                        file.name
+                    }
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = formattedName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isActiveFile) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isActiveFile) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ACTIVE",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Size: ${String.format(Locale.US, "%.2f", file.length() / 1024.0)} KB",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                
+                Button(onClick = {
+                    onSelectFile(file)
+                }) {
+                    Text("Load")
+                }
+                
+                Spacer(modifier = Modifier.width(4.dp))
+
+                IconButton(onClick = {
+                    onExportFile(file)
+                }) {
+                    Icon(Icons.Default.SaveAlt, contentDescription = "Export track file")
+                }
+                
+                Spacer(modifier = Modifier.width(4.dp))
+                
+                IconButton(onClick = {
+                    fileToDelete = file
+                }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete track file")
+                }
+            }
+        }
+    }
+
+    if (fileToDelete != null) {
+        val activeRange = scheduler.getActiveRange(ranges)
+        val isActiveFile = fileToDelete?.absolutePath == gpxManager.getGpxFile(activeRange).absolutePath
+
+        AlertDialog(
+            onDismissRequest = { fileToDelete = null },
+            title = { Text("Delete Track?") },
+            text = { 
+                if (isActiveFile) {
+                    Text("This is the track currently being recorded (if active). Deleting it will stop logging for the current schedule until a new point is recorded. Are you sure?")
+                } else {
+                    Text("Are you sure you want to permanently delete this track file?")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val file = fileToDelete!!
+                        file.delete()
+                        onDeleteFile(file)
+                        fileToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { fileToDelete = null }) {
+                    Text("Cancel")
+                }
             }
         )
     }
