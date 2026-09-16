@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,13 +36,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -111,6 +117,13 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         }
     }
     
+    val scope = rememberCoroutineScope()
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.PartiallyExpanded
+        )
+    )
+
     var showTimePicker by remember { mutableStateOf(value = false) }
     var pickingStartTime by remember { mutableStateOf(value = true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
@@ -193,162 +206,189 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(text = "GPS Lokalizator", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(text = "Tracking Schedule", style = MaterialTheme.typography.titleMedium)
-        
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 120.dp)
-        ) {
-            items(ranges) { range ->
-                ScheduleItem(
-                    range = range,
-                    onDelete = { 
-                        ranges.remove(range)
-                        scheduler.saveSchedules(context, ranges)
-                    },
-                    onEditStart = {
-                        currentRangeIndex = ranges.indexOf(range)
-                        pickingStartTime = true
-                        showTimePicker = true
-                    }
-                ) {
-                    currentRangeIndex = ranges.indexOf(range)
-                    pickingStartTime = false
-                    showTimePicker = true
-                }
-            }
-        }
-
-        OutlinedButton(
-            onClick = {
-                ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
-                scheduler.saveSchedules(context, ranges)
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Add Range")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Tracking Status Indicator
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    if (isTrackingNow) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
-                )
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (isTrackingNow) "● TRACKING ACTIVE" else "○ OUTSIDE SCHEDULE",
-                color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 180.dp,
+        sheetContent = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                // Header and Status (Always visible in peek)
                 Text(
-                    text = if (selectedFile != null) {
-                        "Viewing: ${selectedFile?.name?.substringAfter("track_")?.substringBefore(".gpx") ?: ""}"
-                    } else {
-                        val activeRange = scheduler.getActiveRange(ranges)
-                        if (activeRange != null) {
-                            String.format(Locale.US, "Active Range: %02d:%02d-%02d:%02d", activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
-                        } else {
-                            "No active schedule"
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    text = "GPS Lokalizator",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(vertical = 8.dp)
                 )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (selectedFile != null) {
-                TextButton(onClick = { selectedFile = null }) {
-                    Text("Show Active")
+                
+                // Tracking Status Indicator
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (isTrackingNow) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
+                        )
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isTrackingNow) "● TRACKING ACTIVE" else "○ OUTSIDE SCHEDULE",
+                        color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
+                        style = MaterialTheme.typography.titleSmall
+                    )
                 }
-            }
-            TextButton(onClick = {
-                val file = selectedFile ?: run {
-                    val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
-                    gpxManager.getGpxFile(activeRange)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // TabRow (Visible in peek)
+                TabRow(selectedTabIndex = selectedTab, modifier = Modifier.fillMaxWidth()) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { 
+                            selectedTab = 0
+                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                        },
+                        text = { Text("Schedules") }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { 
+                            selectedTab = 1
+                            scope.launch { scaffoldState.bottomSheetState.expand() }
+                        },
+                        text = { Text("Points") }
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { 
+                            selectedTab = 2
+                            scope.launch { scaffoldState.bottomSheetState.expand() }
+                        },
+                        text = { Text("Saved") }
+                    )
                 }
-                trackPoints = gpxManager.getTrackPoints(file)
-            }) {
-                Text("Refresh Data")
-            }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom half tabbed views
-        TabRow(selectedTabIndex = selectedTab, modifier = Modifier.fillMaxWidth()) {
-            Tab(
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                text = { Text("Map View") }
-            )
-            Tab(
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                text = { Text("Points List (${trackPoints.size})") }
-            )
-            Tab(
-                selected = selectedTab == 2,
-                onClick = { selectedTab = 2 },
-                text = { Text("Saved Tracks") }
-            )
-        }
+                // Tab Content
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    when (selectedTab) {
+                        0 -> {
+                            // On Map tab, show schedule in the sheet
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Tracking Schedule", style = MaterialTheme.typography.titleMedium)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TextButton(onClick = {
+                                        val file = selectedFile ?: run {
+                                            val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
+                                            gpxManager.getGpxFile(activeRange)
+                                        }
+                                        trackPoints = gpxManager.getTrackPoints(file)
+                                    }) {
+                                        Text("Refresh")
+                                    }
+                                }
+                                
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 150.dp)
+                                ) {
+                                    items(ranges) { range ->
+                                        ScheduleItem(
+                                            range = range,
+                                            onDelete = { 
+                                                ranges.remove(range)
+                                                scheduler.saveSchedules(context, ranges)
+                                            },
+                                            onEditStart = {
+                                                currentRangeIndex = ranges.indexOf(range)
+                                                pickingStartTime = true
+                                                showTimePicker = true
+                                            }
+                                        ) {
+                                            currentRangeIndex = ranges.indexOf(range)
+                                            pickingStartTime = false
+                                            showTimePicker = true
+                                        }
+                                    }
+                                }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            when (selectedTab) {
-                0 -> TrackMap(points = trackPoints, modifier = Modifier.fillMaxSize())
-                1 -> TrackPointsList(points = trackPoints, modifier = Modifier.fillMaxSize())
-                2 -> SavedTracksList(
-                    gpxManager = gpxManager,
-                    scheduler = scheduler,
-                    onSelectFile = { file ->
-                        selectedFile = file
-                        selectedTab = 0
-                    },
-                    onDeleteFile = { file ->
-                        if (selectedFile == file) {
-                            selectedFile = null
+                                OutlinedButton(
+                                    onClick = {
+                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
+                                        scheduler.saveSchedules(context, ranges)
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Add Range")
+                                }
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text(
+                                    text = if (selectedFile != null) {
+                                        "Viewing: ${selectedFile?.name?.replace("track_", "")?.replace(".gpx", "")}"
+                                    } else {
+                                        val activeRange = scheduler.getActiveRange(ranges)
+                                        if (activeRange != null) {
+                                            String.format(Locale.US, "Active: %02d:%02d-%02d:%02d", activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
+                                        } else {
+                                            "No active schedule"
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                if (selectedFile != null) {
+                                    TextButton(onClick = { selectedFile = null }) {
+                                        Text("Show Current Active Track")
+                                    }
+                                }
+                            }
                         }
-                    },
-                    onExportFile = { file ->
-                        fileToExport = file
-                        createDocumentLauncher.launch(file.name)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                        1 -> TrackPointsList(points = trackPoints, modifier = Modifier.fillMaxSize())
+                        2 -> SavedTracksList(
+                            gpxManager = gpxManager,
+                            scheduler = scheduler,
+                            onSelectFile = { file ->
+                                selectedFile = file
+                                selectedTab = 0
+                                scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                            },
+                            onDeleteFile = { file ->
+                                if (selectedFile == file) {
+                                    selectedFile = null
+                                }
+                            },
+                            onExportFile = { file ->
+                                fileToExport = file
+                                createDocumentLauncher.launch(file.name)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(32.dp))
             }
+        },
+        modifier = modifier.fillMaxSize()
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            TrackMap(points = trackPoints, modifier = Modifier.fillMaxSize())
         }
     }
 
