@@ -1,4 +1,4 @@
-package com.aletchec.lokalizator.ui.theme
+package com.aletchec.traceit.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

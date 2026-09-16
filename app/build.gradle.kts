@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.aletchec.lokalizator"
+    namespace = "com.aletchec.traceit"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.aletchec.lokalizator"
+        applicationId = "com.aletchec.traceit"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

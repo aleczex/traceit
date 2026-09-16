@@ -1,4 +1,4 @@
-package com.aletchec.lokalizator
+package com.aletchec.traceit
 
 import android.content.Context
 import java.util.Calendar

@@ -1,4 +1,4 @@
-package com.aletchec.lokalizator
+package com.aletchec.traceit
 
 import org.junit.Test
 

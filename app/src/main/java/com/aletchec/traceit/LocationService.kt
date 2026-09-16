@@ -1,38 +1,41 @@
-package com.aletchec.lokalizator
+package com.aletchec.traceit
 
+import android.Manifest
+import android.R
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.hardware.TriggerEvent
+import android.hardware.TriggerEventListener
 import android.location.Location
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.ActivityTransition
+import com.google.android.gms.location.ActivityTransitionRequest
+import com.google.android.gms.location.ActivityTransitionResult
+import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityTransition
-import com.google.android.gms.location.ActivityTransitionRequest
-import com.google.android.gms.location.DetectedActivity
-import android.content.BroadcastReceiver
-import android.app.NotificationManager
-import android.app.NotificationChannel
-import android.content.pm.ServiceInfo
-import android.hardware.TriggerEvent
-import android.hardware.TriggerEventListener
-import android.os.Handler
-import android.os.PowerManager
 
 class LocationService : Service() {
 
@@ -64,9 +67,9 @@ class LocationService : Service() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         gpxManager = GpxManager(this)
         scheduler = TrackingScheduler()
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         significantMotionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)
-        powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        powerManager = getSystemService(POWER_SERVICE) as PowerManager
 
 
         locationCallback = object : LocationCallback() {
@@ -102,8 +105,8 @@ class LocationService : Service() {
         activityReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == "com.lokalizator.ACTIVITY_TRANSITION") {
-                    if (com.google.android.gms.location.ActivityTransitionResult.hasResult(intent)) {
-                        val result = com.google.android.gms.location.ActivityTransitionResult.extractResult(intent)!!
+                    if (ActivityTransitionResult.hasResult(intent)) {
+                        val result = ActivityTransitionResult.extractResult(intent)!!
                         for (event in result.transitionEvents) {
                             if (event.activityType == DetectedActivity.STILL && event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
                                 if (currentState == State.TRACKING) {
@@ -120,7 +123,8 @@ class LocationService : Service() {
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(activityReceiver, IntentFilter("com.lokalizator.ACTIVITY_TRANSITION"), RECEIVER_NOT_EXPORTED)
+            registerReceiver(activityReceiver,
+                IntentFilter("com.lokalizator.ACTIVITY_TRANSITION"), RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(activityReceiver, IntentFilter("com.lokalizator.ACTIVITY_TRANSITION"))
         }
@@ -145,7 +149,7 @@ class LocationService : Service() {
         releaseWakeLock()
         stopStillnessChecker()
     }
-    
+
     private fun startTracking() {
         if (currentState == State.TRACKING) return
         currentState = State.TRACKING
@@ -209,12 +213,16 @@ class LocationService : Service() {
     }
 
     private fun startActivityTransitionUpdates() {
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
             return
         }
         val transitions = mutableListOf<ActivityTransition>()
-        transitions.add(ActivityTransition.Builder().setActivityType(DetectedActivity.STILL).setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER).build())
-        transitions.add(ActivityTransition.Builder().setActivityType(DetectedActivity.STILL).setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT).build())
+        transitions.add(
+            ActivityTransition.Builder().setActivityType(DetectedActivity.STILL).setActivityTransition(
+                ActivityTransition.ACTIVITY_TRANSITION_ENTER).build())
+        transitions.add(
+            ActivityTransition.Builder().setActivityType(DetectedActivity.STILL).setActivityTransition(
+                ActivityTransition.ACTIVITY_TRANSITION_EXIT).build())
 
         val request = ActivityTransitionRequest(transitions)
         val intent = Intent("com.lokalizator.ACTIVITY_TRANSITION")
@@ -266,7 +274,7 @@ class LocationService : Service() {
         return NotificationCompat.Builder(this, "location_channel")
             .setContentTitle("Lokalizator")
             .setContentText(content)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()
@@ -308,7 +316,7 @@ class LocationService : Service() {
     private fun resetStillnessChecker() {
         startStillnessChecker()
     }
-    
+
     private fun acquireWakeLock() {
         if (wakeLock == null) {
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Lokalizator::LocationWakeLock")

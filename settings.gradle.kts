@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "lokalizator"
+rootProject.name = "traceit"
 include(":app")
  
