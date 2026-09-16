@@ -31,6 +31,8 @@ import android.app.NotificationChannel
 import android.content.pm.ServiceInfo
 import android.hardware.TriggerEvent
 import android.hardware.TriggerEventListener
+import android.os.Handler
+import android.os.PowerManager
 
 class LocationService : Service() {
 
@@ -42,11 +44,17 @@ class LocationService : Service() {
     private var significantMotionSensor: Sensor? = null
     private lateinit var activityReceiver: BroadcastReceiver
     private lateinit var motionListener: TriggerEventListener
+    private lateinit var powerManager: PowerManager
+    private var wakeLock: PowerManager.WakeLock? = null
+    private val stillnessHandler = Handler(Looper.getMainLooper())
+    private var stillnessRunnable: Runnable? = null
+    private var lastLocation: Location? = null
 
     private enum class State {
         IDLE,
         WAITING_FOR_MOTION,
-        TRACKING
+        TRACKING,
+        PAUSED
     }
 
     private var currentState = State.IDLE
@@ -58,6 +66,8 @@ class LocationService : Service() {
         scheduler = TrackingScheduler()
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         significantMotionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)
+        powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -79,7 +89,7 @@ class LocationService : Service() {
     private fun setupMotionListener() {
         motionListener = object : TriggerEventListener() {
             override fun onTrigger(event: TriggerEvent?) {
-                if (currentState == State.WAITING_FOR_MOTION) {
+                if (currentState == State.WAITING_FOR_MOTION || currentState == State.PAUSED) {
                     startTracking()
                 }
                 // Re-arm the sensor
@@ -97,7 +107,7 @@ class LocationService : Service() {
                         for (event in result.transitionEvents) {
                             if (event.activityType == DetectedActivity.STILL && event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
                                 if (currentState == State.TRACKING) {
-                                    stopTrackingAndListenForMotion()
+                                    pauseTracking()
                                 }
                             } else if (event.activityType != DetectedActivity.STILL && event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
                                 if (currentState != State.TRACKING) {
@@ -125,23 +135,37 @@ class LocationService : Service() {
             stopTrackingAndListenForMotion()
         }
     }
+
+    private fun pauseTracking() {
+        if (currentState != State.TRACKING) return
+        currentState = State.PAUSED
+        updateNotification("Tracking paused. Waiting for movement.")
+        stopLocationUpdates()
+        startMotionSensor()
+        releaseWakeLock()
+        stopStillnessChecker()
+    }
     
     private fun startTracking() {
         if (currentState == State.TRACKING) return
         currentState = State.TRACKING
+        acquireWakeLock()
         updateNotification("Tracking active.")
         startLocationUpdates()
         startActivityTransitionUpdates()
         stopMotionSensor()
+        startStillnessChecker()
     }
 
     private fun stopTrackingAndListenForMotion() {
-        if (currentState == State.WAITING_FOR_MOTION || currentState == State.IDLE) return
+        if (currentState == State.WAITING_FOR_MOTION || currentState == State.IDLE || currentState == State.PAUSED) return
         currentState = State.WAITING_FOR_MOTION
         updateNotification("Tracking paused. Waiting for movement.")
         stopLocationUpdates()
         stopActivityTransitionUpdates()
         startMotionSensor()
+        releaseWakeLock()
+        stopStillnessChecker()
     }
 
     private fun handleLocationUpdate(location: Location) {
@@ -150,6 +174,8 @@ class LocationService : Service() {
             val file = gpxManager.getGpxFile(activeRange)
             gpxManager.appendLocation(file, location)
             updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
+            lastLocation = location
+            resetStillnessChecker()
         } else {
             evaluateState()
         }
@@ -255,9 +281,46 @@ class LocationService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopLocationUpdates()
         stopMotionSensor()
         stopActivityTransitionUpdates()
         unregisterReceiver(activityReceiver)
+        releaseWakeLock()
+        stopStillnessChecker()
+    }
+
+    private fun startStillnessChecker() {
+        stopStillnessChecker()
+        stillnessRunnable = Runnable {
+            if (currentState == State.TRACKING) {
+                pauseTracking()
+            }
+        }
+        stillnessHandler.postDelayed(stillnessRunnable!!, 300000) // 5 minutes
+    }
+
+    private fun stopStillnessChecker() {
+        stillnessRunnable?.let {
+            stillnessHandler.removeCallbacks(it)
+            stillnessRunnable = null
+        }
+    }
+
+    private fun resetStillnessChecker() {
+        startStillnessChecker()
+    }
+    
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Lokalizator::LocationWakeLock")
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire(300000)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
     }
 }
