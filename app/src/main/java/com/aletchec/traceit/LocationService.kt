@@ -52,6 +52,9 @@ class LocationService : Service() {
     private val stillnessHandler = Handler(Looper.getMainLooper())
     private var stillnessRunnable: Runnable? = null
     private var lastLocation: Location? = null
+    private var startingLocation: Location? = null
+    private var lastInsideLocation: Location? = null
+    private var hasLeftStartingRange = false
 
     private enum class State {
         IDLE,
@@ -154,7 +157,10 @@ class LocationService : Service() {
         if (currentState == State.TRACKING) return
         currentState = State.TRACKING
         acquireWakeLock()
-        updateNotification("Tracking active.")
+        startingLocation = null
+        lastInsideLocation = null
+        hasLeftStartingRange = false
+        updateNotification("Tracking active. Waiting for departure...")
         startLocationUpdates()
         startActivityTransitionUpdates()
         stopMotionSensor()
@@ -176,18 +182,48 @@ class LocationService : Service() {
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
         if (activeRange != null) {
             val file = gpxManager.getGpxFile(activeRange)
-            gpxManager.appendLocation(file, location)
-            updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
-            lastLocation = location
-            resetStillnessChecker()
+            val threshold = scheduler.getDepartureDistanceThresholdMeters(this)
+
+            if (threshold <= 0 || hasLeftStartingRange) {
+                gpxManager.appendLocation(file, location)
+                updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
+                lastLocation = location
+                resetStillnessChecker()
+                if (!hasLeftStartingRange) hasLeftStartingRange = true
+            } else {
+                if (startingLocation == null) {
+                    startingLocation = location
+                    lastInsideLocation = location
+                    updateNotification("Waiting for departure from start point. Threshold: ${threshold}m")
+                } else {
+                    val distance = startingLocation!!.distanceTo(location)
+                    if (distance <= threshold) {
+                        lastInsideLocation = location
+                        updateNotification("Waiting for departure: ${distance.toInt()}m / ${threshold}m")
+                    } else {
+                        // Left the range!
+                        hasLeftStartingRange = true
+                        val pointToSaveFirst = lastInsideLocation ?: startingLocation ?: location
+                        gpxManager.appendLocation(file, pointToSaveFirst)
+                        if (pointToSaveFirst.latitude != location.latitude || pointToSaveFirst.longitude != location.longitude || pointToSaveFirst.time != location.time) {
+                            gpxManager.appendLocation(file, location)
+                        }
+                        updateNotification("Tracking active (departed). Last point: ${location.latitude}, ${location.longitude}")
+                        lastLocation = location
+                        resetStillnessChecker()
+                    }
+                }
+            }
         } else {
             evaluateState()
         }
     }
 
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-            .setMinUpdateIntervalMillis(5000)
+        val intervalSeconds = scheduler.getGpsIntervalSeconds(this)
+        val intervalMillis = intervalSeconds * 1000L
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
+            .setMinUpdateIntervalMillis(intervalMillis)
             .build()
         try {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())

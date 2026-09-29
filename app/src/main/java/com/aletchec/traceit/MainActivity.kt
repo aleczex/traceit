@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Tab
@@ -124,6 +125,10 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     var showTimePicker by remember { mutableStateOf(value = false) }
     var pickingStartTime by remember { mutableStateOf(value = true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
+    var gpsIntervalSeconds by remember { mutableIntStateOf(scheduler.getGpsIntervalSeconds(context)) }
+    var showIntervalDialog by remember { mutableStateOf(false) }
+    var departureDistanceMeters by remember { mutableIntStateOf(scheduler.getDepartureDistanceThresholdMeters(context)) }
+    var showDepartureDialog by remember { mutableStateOf(false) }
     
     var selectedTab by remember { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
@@ -334,6 +339,47 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                     Text("Add Range")
                                 }
                                 
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = "GPS Check Interval", style = MaterialTheme.typography.titleSmall)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = "Check position every $gpsIntervalSeconds sec", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    TextButton(onClick = { showIntervalDialog = true }) {
+                                        Text("Change")
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = "Departure Distance Threshold", style = MaterialTheme.typography.titleSmall)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (departureDistanceMeters == 0) "Disabled (record immediately)" else "Start recording after moving $departureDistanceMeters m",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    TextButton(onClick = { showDepartureDialog = true }) {
+                                        Text("Change")
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
                                 Text(
@@ -407,6 +453,84 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 }
                 scheduler.saveSchedules(context, ranges)
                 showTimePicker = false
+            }
+        )
+    }
+
+    if (showIntervalDialog) {
+        var intervalInput by remember { mutableStateOf(gpsIntervalSeconds.toString()) }
+        AlertDialog(
+            onDismissRequest = { showIntervalDialog = false },
+            title = { Text("GPS Check Interval") },
+            text = {
+                Column {
+                    Text("Enter how often GPS position should be checked (in seconds):")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = intervalInput,
+                        onValueChange = { intervalInput = it },
+                        label = { Text("Seconds") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val sec = intervalInput.toIntOrNull()
+                    if (sec != null && sec > 0) {
+                        gpsIntervalSeconds = sec
+                        scheduler.saveGpsIntervalSeconds(context, sec)
+                        showIntervalDialog = false
+                    } else {
+                        Toast.makeText(context, "Please enter a valid positive number", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showIntervalDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDepartureDialog) {
+        var distanceInput by remember { mutableStateOf(departureDistanceMeters.toString()) }
+        AlertDialog(
+            onDismissRequest = { showDepartureDialog = false },
+            title = { Text("Departure Distance Threshold") },
+            text = {
+                Column {
+                    Text("Enter distance in meters to move from starting point before tracking starts (0 to disable):")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = distanceInput,
+                        onValueChange = { distanceInput = it },
+                        label = { Text("Meters") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val meters = distanceInput.toIntOrNull()
+                    if (meters != null && meters >= 0) {
+                        departureDistanceMeters = meters
+                        scheduler.saveDepartureDistanceThresholdMeters(context, meters)
+                        showDepartureDialog = false
+                    } else {
+                        Toast.makeText(context, "Please enter a valid number (0 or greater)", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDepartureDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }

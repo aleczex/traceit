@@ -78,4 +78,24 @@ class TrackingScheduler {
             listOf(TimeRange(8, 0, 16, 0))
         }
     }
+
+    fun getGpsIntervalSeconds(context: Context): Int {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        return sharedPrefs.getInt("gps_interval_seconds", 5)
+    }
+
+    fun saveGpsIntervalSeconds(context: Context, seconds: Int) {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().putInt("gps_interval_seconds", seconds).apply()
+    }
+
+    fun getDepartureDistanceThresholdMeters(context: Context): Int {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        return sharedPrefs.getInt("departure_distance_threshold_meters", 50)
+    }
+
+    fun saveDepartureDistanceThresholdMeters(context: Context, meters: Int) {
+        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().putInt("departure_distance_threshold_meters", meters).apply()
+    }
 }
