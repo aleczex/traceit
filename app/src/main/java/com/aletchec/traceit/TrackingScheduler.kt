@@ -6,7 +6,18 @@ import java.util.Locale
 
 class TrackingScheduler {
 
-    data class TimeRange(val startHour: Int, val startMinute: Int, val endHour: Int, val endMinute: Int)
+    data class TimeRange(
+        val startHour: Int,
+        val startMinute: Int,
+        val endHour: Int,
+        val endMinute: Int,
+        val startLat: Double? = null,
+        val startLon: Double? = null,
+        val startRadiusMeters: Int = 0,
+        val endLat: Double? = null,
+        val endLon: Double? = null,
+        val endRadiusMeters: Int = 0
+    )
 
     fun isTrackingAllowed(ranges: List<TimeRange>): Boolean {
         return getActiveRange(ranges) != null
@@ -35,25 +46,75 @@ class TrackingScheduler {
     }
 
     fun serializeRanges(ranges: List<TimeRange>): String {
-        return ranges.joinToString(", ") {
+        return ranges.joinToString("; ") {
             val start = String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute)
             val end = String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
-            "$start-$end"
+            val timeStr = "$start-$end"
+
+            val startStr = if (it.startLat != null && it.startLon != null) {
+                "${it.startLat},${it.startLon},${it.startRadiusMeters}"
+            } else ""
+
+            val endStr = if (it.endLat != null && it.endLon != null) {
+                "${it.endLat},${it.endLon},${it.endRadiusMeters}"
+            } else ""
+
+            if (startStr.isNotEmpty() || endStr.isNotEmpty()) {
+                "$timeStr@$startStr@$endStr"
+            } else {
+                timeStr
+            }
         }
     }
 
     fun parseRanges(input: String): List<TimeRange> {
-        // Expected format: "08:00-16:00, 20:00-22:00"
         return try {
-            input.split(",").mapNotNull { rangeStr ->
-                val parts = rangeStr.trim().split("-")
+            val delimiter = if (input.contains(";")) ";" else ","
+            input.split(delimiter).mapNotNull { rangeStr ->
+                val str = rangeStr.trim()
+                if (str.isEmpty()) return@mapNotNull null
+
+                val partsAt = str.split("@")
+                val timePart = partsAt[0].trim()
+
+                val parts = timePart.split("-")
                 if (parts.size == 2) {
                     val start = parts[0].trim().split(":")
                     val end = parts[1].trim().split(":")
                     if (start.size == 2 && end.size == 2) {
+                        var startLat: Double? = null
+                        var startLon: Double? = null
+                        var startRadius = 0
+
+                        var endLat: Double? = null
+                        var endLon: Double? = null
+                        var endRadius = 0
+
+                        val startLocPart = partsAt.getOrNull(1)?.trim()
+                        if (!startLocPart.isNullOrEmpty()) {
+                            val locParts = startLocPart.split(",")
+                            if (locParts.size == 3) {
+                                startLat = locParts[0].toDoubleOrNull()
+                                startLon = locParts[1].toDoubleOrNull()
+                                startRadius = locParts[2].toIntOrNull() ?: 0
+                            }
+                        }
+
+                        val endLocPart = partsAt.getOrNull(2)?.trim()
+                        if (!endLocPart.isNullOrEmpty()) {
+                            val locParts = endLocPart.split(",")
+                            if (locParts.size == 3) {
+                                endLat = locParts[0].toDoubleOrNull()
+                                endLon = locParts[1].toDoubleOrNull()
+                                endRadius = locParts[2].toIntOrNull() ?: 0
+                            }
+                        }
+
                         TimeRange(
                             start[0].toInt(), start[1].toInt(),
-                            end[0].toInt(), end[1].toInt()
+                            end[0].toInt(), end[1].toInt(),
+                            startLat, startLon, startRadius,
+                            endLat, endLon, endRadius
                         )
                     } else null
                 } else null
@@ -74,7 +135,6 @@ class TrackingScheduler {
         return if (!savedStr.isNullOrBlank()) {
             parseRanges(savedStr)
         } else {
-            // Default initial schedule if none exists
             listOf(TimeRange(8, 0, 16, 0))
         }
     }
@@ -87,15 +147,5 @@ class TrackingScheduler {
     fun saveGpsIntervalSeconds(context: Context, seconds: Int) {
         val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
         sharedPrefs.edit().putInt("gps_interval_seconds", seconds).apply()
-    }
-
-    fun getDepartureDistanceThresholdMeters(context: Context): Int {
-        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-        return sharedPrefs.getInt("departure_distance_threshold_meters", 50)
-    }
-
-    fun saveDepartureDistanceThresholdMeters(context: Context, meters: Int) {
-        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-        sharedPrefs.edit().putInt("departure_distance_threshold_meters", meters).apply()
     }
 }

@@ -11,9 +11,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,8 +25,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
@@ -46,43 +52,43 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import com.aletchec.traceit.ui.theme.LokalizatorTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polygon
 import org.osmdroid.views.overlay.Polyline
 import java.util.Locale
+
+enum class PickTarget { START, END }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,12 +115,12 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scheduler = remember { TrackingScheduler() }
     val gpxManager = remember { GpxManager(context) }
-    val ranges = remember { 
+    val ranges = remember {
         mutableStateListOf<TrackingScheduler.TimeRange>().apply {
             addAll(scheduler.loadSchedules(context))
         }
     }
-    
+
     val scope = rememberCoroutineScope()
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
@@ -122,14 +128,18 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         )
     )
 
-    var showTimePicker by remember { mutableStateOf(value = false) }
-    var pickingStartTime by remember { mutableStateOf(value = true) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var pickingStartTime by remember { mutableStateOf(true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
     var gpsIntervalSeconds by remember { mutableIntStateOf(scheduler.getGpsIntervalSeconds(context)) }
     var showIntervalDialog by remember { mutableStateOf(false) }
-    var departureDistanceMeters by remember { mutableIntStateOf(scheduler.getDepartureDistanceThresholdMeters(context)) }
-    var showDepartureDialog by remember { mutableStateOf(false) }
-    
+
+    var pickingScheduleIndex by remember { mutableIntStateOf(-1) }
+    var pickTarget by remember { mutableStateOf(PickTarget.START) }
+    var editingRadiusScheduleIndex by remember { mutableIntStateOf(-1) }
+    var editingRadiusTarget by remember { mutableStateOf(PickTarget.START) }
+    var showRadiusDialog by remember { mutableStateOf(false) }
+
     var selectedTab by remember { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
     var trackPoints by remember { mutableStateOf(emptyList<GpxManager.TrackPoint>()) }
@@ -176,7 +186,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
             val isAllowed = scheduler.isTrackingAllowed(ranges)
             isTrackingNow = isAllowed
 
-            // Auto-start service if not running and tracking is allowed
             val allGranted = permissionsToRequest.all {
                 ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
             }
@@ -218,14 +227,12 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     .fillMaxHeight(0.85f)
                     .padding(horizontal = 16.dp)
             ) {
-                // Header and Status (Always visible in peek)
                 Text(
                     text = "GPS Lokalizator",
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
-                
-                // Tracking Status Indicator
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -245,11 +252,10 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // TabRow (Visible in peek)
                 TabRow(selectedTabIndex = selectedTab, modifier = Modifier.fillMaxWidth()) {
                     Tab(
                         selected = selectedTab == 0,
-                        onClick = { 
+                        onClick = {
                             selectedTab = 0
                             scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                         },
@@ -257,7 +263,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     )
                     Tab(
                         selected = selectedTab == 1,
-                        onClick = { 
+                        onClick = {
                             selectedTab = 1
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
@@ -265,7 +271,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     )
                     Tab(
                         selected = selectedTab == 2,
-                        onClick = { 
+                        onClick = {
                             selectedTab = 2
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
@@ -275,7 +281,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Tab Content
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -283,7 +288,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 ) {
                     when (selectedTab) {
                         0 -> {
-                            // On Map tab, show schedule in the sheet
                             Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -301,29 +305,69 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                         Text("Refresh")
                                     }
                                 }
-                                
+
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 150.dp)
+                                        .heightIn(max = 240.dp)
                                 ) {
-                                    items(ranges) { range ->
+                                    itemsIndexed(ranges) { index, range ->
                                         ScheduleItem(
                                             range = range,
-                                            onDelete = { 
-                                                ranges.remove(range)
+                                            isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
+                                            isPickingEnd = pickingScheduleIndex == index && pickTarget == PickTarget.END,
+                                            onDelete = {
+                                                ranges.removeAt(index)
+                                                if (pickingScheduleIndex == index) pickingScheduleIndex = -1
                                                 scheduler.saveSchedules(context, ranges)
                                             },
                                             onEditStart = {
-                                                currentRangeIndex = ranges.indexOf(range)
+                                                currentRangeIndex = index
                                                 pickingStartTime = true
                                                 showTimePicker = true
+                                            },
+                                            onEditEnd = {
+                                                currentRangeIndex = index
+                                                pickingStartTime = false
+                                                showTimePicker = true
+                                            },
+                                            onTogglePickStart = {
+                                                if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
+                                                    pickingScheduleIndex = -1
+                                                } else {
+                                                    pickingScheduleIndex = index
+                                                    pickTarget = PickTarget.START
+                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                                }
+                                            },
+                                            onTogglePickEnd = {
+                                                if (pickingScheduleIndex == index && pickTarget == PickTarget.END) {
+                                                    pickingScheduleIndex = -1
+                                                } else {
+                                                    pickingScheduleIndex = index
+                                                    pickTarget = PickTarget.END
+                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                                }
+                                            },
+                                            onSetStartRadius = {
+                                                editingRadiusScheduleIndex = index
+                                                editingRadiusTarget = PickTarget.START
+                                                showRadiusDialog = true
+                                            },
+                                            onSetEndRadius = {
+                                                editingRadiusScheduleIndex = index
+                                                editingRadiusTarget = PickTarget.END
+                                                showRadiusDialog = true
+                                            },
+                                            onClearStartPoint = {
+                                                ranges[index] = range.copy(startLat = null, startLon = null, startRadiusMeters = 0)
+                                                scheduler.saveSchedules(context, ranges)
+                                            },
+                                            onClearEndPoint = {
+                                                ranges[index] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
+                                                scheduler.saveSchedules(context, ranges)
                                             }
-                                        ) {
-                                            currentRangeIndex = ranges.indexOf(range)
-                                            pickingStartTime = false
-                                            showTimePicker = true
-                                        }
+                                        )
                                     }
                                 }
 
@@ -338,7 +382,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Add Range")
                                 }
-                                
+
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Row(
@@ -360,28 +404,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = "Departure Distance Threshold", style = MaterialTheme.typography.titleSmall)
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = if (departureDistanceMeters == 0) "Disabled (record immediately)" else "Start recording after moving $departureDistanceMeters m",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                    TextButton(onClick = { showDepartureDialog = true }) {
-                                        Text("Change")
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
                                 Text(
                                     text = if (selectedFile != null) {
                                         "Viewing: ${selectedFile?.name?.replace("track_", "")?.replace(".gpx", "")}"
@@ -431,11 +453,63 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            TrackMap(points = trackPoints, modifier = Modifier.fillMaxSize())
+            TrackMap(
+                points = trackPoints,
+                ranges = ranges,
+                pickingScheduleIndex = pickingScheduleIndex,
+                onPointSelectedOnMap = { point ->
+                    if (pickingScheduleIndex in ranges.indices) {
+                        val currentRange = ranges[pickingScheduleIndex]
+                        ranges[pickingScheduleIndex] = if (pickTarget == PickTarget.START) {
+                            val defaultRadius = if (currentRange.startRadiusMeters > 0) currentRange.startRadiusMeters else 50
+                            currentRange.copy(
+                                startLat = point.latitude,
+                                startLon = point.longitude,
+                                startRadiusMeters = defaultRadius
+                            )
+                        } else {
+                            val defaultRadius = if (currentRange.endRadiusMeters > 0) currentRange.endRadiusMeters else 50
+                            currentRange.copy(
+                                endLat = point.latitude,
+                                endLon = point.longitude,
+                                endRadiusMeters = defaultRadius
+                            )
+                        }
+                        scheduler.saveSchedules(context, ranges)
+                        Toast.makeText(context, "${if (pickTarget == PickTarget.START) "Start" else "End"} point set for schedule!", Toast.LENGTH_SHORT).show()
+                    }
+                    pickingScheduleIndex = -1
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (pickingScheduleIndex != -1) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Tap map to set ${if (pickTarget == PickTarget.START) "START" else "END"} point for Schedule #${pickingScheduleIndex + 1}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { pickingScheduleIndex = -1 }) {
+                            Text("Cancel")
+                        }
+                    }
+                }
+            }
         }
     }
 
-    if (showTimePicker) {
+    if (showTimePicker && currentRangeIndex in ranges.indices) {
         val range = ranges[currentRangeIndex]
         val initialHour = if (pickingStartTime) range.startHour else range.endHour
         val initialMinute = if (pickingStartTime) range.startMinute else range.endMinute
@@ -496,30 +570,37 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    if (showDepartureDialog) {
-        var distanceInput by remember { mutableStateOf(departureDistanceMeters.toString()) }
+    if (showRadiusDialog && editingRadiusScheduleIndex in ranges.indices) {
+        val currentRange = ranges[editingRadiusScheduleIndex]
+        val initialRadius = if (editingRadiusTarget == PickTarget.START) currentRange.startRadiusMeters else currentRange.endRadiusMeters
+        var radiusInput by remember { mutableStateOf(if (initialRadius > 0) initialRadius.toString() else "50") }
+
         AlertDialog(
-            onDismissRequest = { showDepartureDialog = false },
-            title = { Text("Departure Distance Threshold") },
+            onDismissRequest = { showRadiusDialog = false },
+            title = { Text("${if (editingRadiusTarget == PickTarget.START) "Start" else "End"} Radius") },
             text = {
                 Column {
-                    Text("Enter distance in meters to move from starting point before tracking starts (0 to disable):")
+                    Text("Enter ${if (editingRadiusTarget == PickTarget.START) "departure" else "arrival"} radius in meters (0 to disable):")
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = distanceInput,
-                        onValueChange = { distanceInput = it },
-                        label = { Text("Meters") },
+                        value = radiusInput,
+                        onValueChange = { radiusInput = it },
+                        label = { Text("Radius (meters)") },
                         singleLine = true
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val meters = distanceInput.toIntOrNull()
-                    if (meters != null && meters >= 0) {
-                        departureDistanceMeters = meters
-                        scheduler.saveDepartureDistanceThresholdMeters(context, meters)
-                        showDepartureDialog = false
+                    val radius = radiusInput.toIntOrNull()
+                    if (radius != null && radius >= 0) {
+                        ranges[editingRadiusScheduleIndex] = if (editingRadiusTarget == PickTarget.START) {
+                            currentRange.copy(startRadiusMeters = radius)
+                        } else {
+                            currentRange.copy(endRadiusMeters = radius)
+                        }
+                        scheduler.saveSchedules(context, ranges)
+                        showRadiusDialog = false
                     } else {
                         Toast.makeText(context, "Please enter a valid number (0 or greater)", Toast.LENGTH_SHORT).show()
                     }
@@ -528,14 +609,127 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDepartureDialog = false }) {
+                TextButton(onClick = { showRadiusDialog = false }) {
                     Text("Cancel")
                 }
             }
         )
     }
+}
 
-    // No longer need showStopTrackingConfirmation dialog
+@Composable
+fun ScheduleItem(
+    range: TrackingScheduler.TimeRange,
+    isPickingStart: Boolean,
+    isPickingEnd: Boolean,
+    onDelete: () -> Unit,
+    onEditStart: () -> Unit,
+    onEditEnd: () -> Unit,
+    onTogglePickStart: () -> Unit,
+    onTogglePickEnd: () -> Unit,
+    onSetStartRadius: () -> Unit,
+    onSetEndRadius: () -> Unit,
+    onClearStartPoint: () -> Unit,
+    onClearEndPoint: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .background(
+                if (isPickingStart || isPickingEnd) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                else MaterialTheme.colorScheme.surfaceVariant,
+                RoundedCornerShape(8.dp)
+            )
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onEditStart) {
+                Text(String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute))
+            }
+            Text("-")
+            TextButton(onClick = onEditEnd) {
+                Text(String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute))
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete range")
+            }
+        }
+
+        // Start Point Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val startInfo = if (range.startLat != null && range.startLon != null) {
+                val radiusStr = if (range.startRadiusMeters > 0) "${range.startRadiusMeters}m radius" else "no radius"
+                "Start: ${String.format(Locale.US, "%.4f, %.4f", range.startLat, range.startLon)} ($radiusStr)"
+            } else {
+                "Start: Not set"
+            }
+
+            Text(
+                text = startInfo,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+
+            TextButton(onClick = onTogglePickStart) {
+                Text(if (isPickingStart) "Cancel" else "Pick Start")
+            }
+
+            if (range.startLat != null && range.startLon != null) {
+                TextButton(onClick = onSetStartRadius) {
+                    Text("Radius")
+                }
+                IconButton(onClick = onClearStartPoint) {
+                    Icon(Icons.Default.Clear, contentDescription = "Clear start point")
+                }
+            }
+        }
+
+        // End Point Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val endInfo = if (range.endLat != null && range.endLon != null) {
+                val radiusStr = if (range.endRadiusMeters > 0) "${range.endRadiusMeters}m radius" else "no radius"
+                "End: ${String.format(Locale.US, "%.4f, %.4f", range.endLat, range.endLon)} ($radiusStr)"
+            } else {
+                "End: Not set"
+            }
+
+            Text(
+                text = endInfo,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+
+            TextButton(onClick = onTogglePickEnd) {
+                Text(if (isPickingEnd) "Cancel" else "Pick End")
+            }
+
+            if (range.endLat != null && range.endLon != null) {
+                TextButton(onClick = onSetEndRadius) {
+                    Text("Radius")
+                }
+                IconButton(onClick = onClearEndPoint) {
+                    Icon(Icons.Default.Clear, contentDescription = "Clear end point")
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -551,7 +745,7 @@ fun SavedTracksList(
     var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
-    
+
     LaunchedEffect(fileToDelete == null) {
         files = gpxManager.getAllGpxFiles()
     }
@@ -567,14 +761,14 @@ fun SavedTracksList(
         items(files) { file ->
             val activeRange = scheduler.getActiveRange(ranges)
             val isActiveFile = file.absolutePath == gpxManager.getGpxFile(activeRange).absolutePath
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
                     .background(
                         if (isActiveFile) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                        else MaterialTheme.colorScheme.surfaceVariant, 
+                        else MaterialTheme.colorScheme.surfaceVariant,
                         RoundedCornerShape(8.dp)
                     )
                     .padding(12.dp),
@@ -585,9 +779,9 @@ fun SavedTracksList(
                     val formattedName = try {
                         val parts = name.split("_")
                         if (parts.size == 3) {
-                            val dateStr = parts[0] // YYYYMMDD
-                            val startStr = parts[1] // HHMM
-                            val endStr = parts[2] // HHMM
+                            val dateStr = parts[0]
+                            val startStr = parts[1]
+                            val endStr = parts[2]
                             "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
                         } else if (parts.size == 1 && parts[0].length == 8) {
                             val dateStr = parts[0]
@@ -598,7 +792,7 @@ fun SavedTracksList(
                     } catch (e: Exception) {
                         file.name
                     }
-                    
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = formattedName,
@@ -623,13 +817,13 @@ fun SavedTracksList(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                
+
                 Button(onClick = {
                     onSelectFile(file)
                 }) {
                     Text("Load")
                 }
-                
+
                 Spacer(modifier = Modifier.width(4.dp))
 
                 IconButton(onClick = {
@@ -637,9 +831,9 @@ fun SavedTracksList(
                 }) {
                     Icon(Icons.Default.SaveAlt, contentDescription = "Export track file")
                 }
-                
+
                 Spacer(modifier = Modifier.width(4.dp))
-                
+
                 IconButton(onClick = {
                     fileToDelete = file
                 }) {
@@ -656,7 +850,7 @@ fun SavedTracksList(
         AlertDialog(
             onDismissRequest = { fileToDelete = null },
             title = { Text("Delete Track?") },
-            text = { 
+            text = {
                 if (isActiveFile) {
                     Text("This is the track currently being recorded (if active). Deleting it will stop logging for the current schedule until a new point is recorded. Are you sure?")
                 } else {
@@ -686,14 +880,13 @@ fun SavedTracksList(
 }
 
 @Composable
-fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier) {
-    if (points.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("No GPS points recorded yet today.", style = MaterialTheme.typography.bodyMedium)
-        }
-        return
-    }
-
+fun TrackMap(
+    points: List<GpxManager.TrackPoint>,
+    ranges: List<TrackingScheduler.TimeRange>,
+    pickingScheduleIndex: Int,
+    onPointSelectedOnMap: (GeoPoint) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", android.content.Context.MODE_PRIVATE) }
     var hasCenteredInitially by remember { mutableStateOf(false) }
@@ -713,7 +906,7 @@ fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier)
                     override fun onScroll(event: ScrollEvent?): Boolean = false
                     override fun onZoom(event: ZoomEvent?): Boolean {
                         val currentZoom = zoomLevelDouble.toFloat()
-                        sharedPrefs.edit { putFloat("map_zoom_level", currentZoom) }
+                        sharedPrefs.edit().putFloat("map_zoom_level", currentZoom).apply()
                         return false
                     }
                 })
@@ -725,10 +918,79 @@ fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier)
         update = { map ->
             map.overlays.clear()
 
-            if (points.isNotEmpty()) {
-                val geoPoints = points.map { GeoPoint(it.latitude, it.longitude) }
-                
-                // Track line
+            val eventsReceiver = object : MapEventsReceiver {
+                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                    if (pickingScheduleIndex != -1 && p != null) {
+                        onPointSelectedOnMap(p)
+                        return true
+                    }
+                    return false
+                }
+
+                override fun longPressHelper(p: GeoPoint?): Boolean {
+                    if (pickingScheduleIndex != -1 && p != null) {
+                        onPointSelectedOnMap(p)
+                        return true
+                    }
+                    return false
+                }
+            }
+            map.overlays.add(MapEventsOverlay(eventsReceiver))
+
+            for (range in ranges) {
+                // Start Point
+                if (range.startLat != null && range.startLon != null) {
+                    val center = GeoPoint(range.startLat, range.startLon)
+                    val startMarker = Marker(map).apply {
+                        position = center
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = "Start Point (${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)})"
+                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                            setTint(android.graphics.Color.GREEN)
+                        }
+                    }
+                    map.overlays.add(startMarker)
+
+                    if (range.startRadiusMeters > 0) {
+                        val circle = Polygon().apply {
+                            setPoints(Polygon.pointsAsCircle(center, range.startRadiusMeters.toDouble()))
+                            fillPaint.color = android.graphics.Color.argb(40, 0, 255, 0)
+                            outlinePaint.color = android.graphics.Color.GREEN
+                            outlinePaint.strokeWidth = 3f
+                        }
+                        map.overlays.add(circle)
+                    }
+                }
+
+                // End Point
+                if (range.endLat != null && range.endLon != null) {
+                    val center = GeoPoint(range.endLat, range.endLon)
+                    val endMarker = Marker(map).apply {
+                        position = center
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = "End Point (${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)})"
+                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                            setTint(android.graphics.Color.RED)
+                        }
+                    }
+                    map.overlays.add(endMarker)
+
+                    if (range.endRadiusMeters > 0) {
+                        val circle = Polygon().apply {
+                            setPoints(Polygon.pointsAsCircle(center, range.endRadiusMeters.toDouble()))
+                            fillPaint.color = android.graphics.Color.argb(40, 255, 0, 0)
+                            outlinePaint.color = android.graphics.Color.RED
+                            outlinePaint.strokeWidth = 3f
+                        }
+                        map.overlays.add(circle)
+                    }
+                }
+            }
+
+            val validPoints = points.filter { !it.isIgnored }
+            if (validPoints.isNotEmpty()) {
+                val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
+
                 val polyline = Polyline().apply {
                     setPoints(geoPoints)
                     outlinePaint.color = android.graphics.Color.BLUE
@@ -736,7 +998,6 @@ fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier)
                 }
                 map.overlays.add(polyline)
 
-                // Start marker
                 val startMarker = Marker(map).apply {
                     position = geoPoints.first()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -747,7 +1008,6 @@ fun TrackMap(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier)
                 }
                 map.overlays.add(startMarker)
 
-                // End marker
                 val endMarker = Marker(map).apply {
                     position = geoPoints.last()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -785,15 +1045,32 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                    .background(
+                        if (pt.isIgnored) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(8.dp)
+                    )
                     .padding(12.dp)
             ) {
                 Column {
-                    Text(
-                        text = "Time: ${pt.time.replace("T", " ").replace("Z", "")}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Time: ${pt.time.replace("T", " ").replace("Z", "")}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (pt.isIgnored) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                        )
+                        if (pt.isIgnored) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ignored",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Lat: ${pt.latitude}, Lon: ${pt.longitude}",
@@ -806,33 +1083,6 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ScheduleItem(
-    range: TrackingScheduler.TimeRange,
-    onDelete: () -> Unit,
-    onEditStart: () -> Unit,
-    onEditEnd: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TextButton(onClick = onEditStart) {
-            Text(String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute))
-        }
-        Text("-")
-        TextButton(onClick = onEditEnd) {
-            Text(String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute))
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete range")
         }
     }
 }

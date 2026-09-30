@@ -52,9 +52,11 @@ class LocationService : Service() {
     private val stillnessHandler = Handler(Looper.getMainLooper())
     private var stillnessRunnable: Runnable? = null
     private var lastLocation: Location? = null
-    private var startingLocation: Location? = null
-    private var lastInsideLocation: Location? = null
-    private var hasLeftStartingRange = false
+
+    private var currentActiveSchedule: TrackingScheduler.TimeRange? = null
+    private var hasDepartedStartRadius: Boolean = false
+    private var hasArrivedAtEndRadius: Boolean = false
+    private var lastPointInsideStartRadius: Location? = null
 
     private enum class State {
         IDLE,
@@ -73,7 +75,6 @@ class LocationService : Service() {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         significantMotionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)
         powerManager = getSystemService(POWER_SERVICE) as PowerManager
-
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -133,7 +134,6 @@ class LocationService : Service() {
         }
     }
 
-
     private fun evaluateState() {
         val currentRanges = scheduler.loadSchedules(this)
         if (scheduler.getActiveRange(currentRanges) != null) {
@@ -157,10 +157,7 @@ class LocationService : Service() {
         if (currentState == State.TRACKING) return
         currentState = State.TRACKING
         acquireWakeLock()
-        startingLocation = null
-        lastInsideLocation = null
-        hasLeftStartingRange = false
-        updateNotification("Tracking active. Waiting for departure...")
+        updateNotification("Tracking active.")
         startLocationUpdates()
         startActivityTransitionUpdates()
         stopMotionSensor()
@@ -182,39 +179,72 @@ class LocationService : Service() {
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
         if (activeRange != null) {
             val file = gpxManager.getGpxFile(activeRange)
-            val threshold = scheduler.getDepartureDistanceThresholdMeters(this)
 
-            if (threshold <= 0 || hasLeftStartingRange) {
+            if (activeRange != currentActiveSchedule) {
+                currentActiveSchedule = activeRange
+                hasDepartedStartRadius = false
+                hasArrivedAtEndRadius = false
+                lastPointInsideStartRadius = null
+            }
+
+            if (hasArrivedAtEndRadius) {
+                updateNotification("Arrived at destination. Tracking finished for schedule.")
+                return
+            }
+
+            val startLat = activeRange.startLat
+            val startLon = activeRange.startLon
+            val startRadius = activeRange.startRadiusMeters
+
+            if (!hasDepartedStartRadius && startLat != null && startLon != null && startRadius > 0) {
+                val results = FloatArray(1)
+                Location.distanceBetween(location.latitude, location.longitude, startLat, startLon, results)
+                val distanceToStart = results[0]
+
+                if (distanceToStart <= startRadius) {
+                    lastPointInsideStartRadius = location
+                    updateNotification("Inside start radius (${distanceToStart.toInt()}m / ${startRadius}m)...")
+                    return
+                } else {
+                    hasDepartedStartRadius = true
+                    val firstPoint = lastPointInsideStartRadius ?: location
+                    gpxManager.appendLocation(file, firstPoint)
+                    if (firstPoint.latitude != location.latitude || firstPoint.longitude != location.longitude || firstPoint.time != location.time) {
+                        gpxManager.appendLocation(file, location)
+                    }
+                    updateNotification("Departed start point. Tracking active...")
+                    lastLocation = location
+                    resetStillnessChecker()
+                }
+            } else if (!hasDepartedStartRadius) {
+                hasDepartedStartRadius = true
                 gpxManager.appendLocation(file, location)
                 updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
                 lastLocation = location
                 resetStillnessChecker()
-                if (!hasLeftStartingRange) hasLeftStartingRange = true
             } else {
-                if (startingLocation == null) {
-                    startingLocation = location
-                    lastInsideLocation = location
-                    updateNotification("Waiting for departure from start point. Threshold: ${threshold}m")
-                } else {
-                    val distance = startingLocation!!.distanceTo(location)
-                    if (distance <= threshold) {
-                        lastInsideLocation = location
-                        updateNotification("Waiting for departure: ${distance.toInt()}m / ${threshold}m")
-                    } else {
-                        // Left the range!
-                        hasLeftStartingRange = true
-                        val pointToSaveFirst = lastInsideLocation ?: startingLocation ?: location
-                        gpxManager.appendLocation(file, pointToSaveFirst)
-                        if (pointToSaveFirst.latitude != location.latitude || pointToSaveFirst.longitude != location.longitude || pointToSaveFirst.time != location.time) {
-                            gpxManager.appendLocation(file, location)
-                        }
-                        updateNotification("Tracking active (departed). Last point: ${location.latitude}, ${location.longitude}")
-                        lastLocation = location
-                        resetStillnessChecker()
-                    }
+                gpxManager.appendLocation(file, location)
+                updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
+                lastLocation = location
+                resetStillnessChecker()
+            }
+
+            val endLat = activeRange.endLat
+            val endLon = activeRange.endLon
+            val endRadius = activeRange.endRadiusMeters
+
+            if (endLat != null && endLon != null && endRadius > 0) {
+                val results = FloatArray(1)
+                Location.distanceBetween(location.latitude, location.longitude, endLat, endLon, results)
+                val distanceToEnd = results[0]
+
+                if (distanceToEnd <= endRadius) {
+                    hasArrivedAtEndRadius = true
+                    updateNotification("Arrived at destination (${distanceToEnd.toInt()}m <= ${endRadius}m). Trip complete.")
                 }
             }
         } else {
+            currentActiveSchedule = null
             evaluateState()
         }
     }
@@ -275,7 +305,6 @@ class LocationService : Service() {
         val pendingIntent = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         ActivityRecognition.getClient(this).removeActivityTransitionUpdates(pendingIntent)
     }
-
 
     private fun startForegroundService() {
         val channelId = "location_channel"
