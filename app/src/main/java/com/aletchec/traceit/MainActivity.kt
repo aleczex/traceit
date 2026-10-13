@@ -390,9 +390,9 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                         2 -> SavedTracksList(
                             gpxManager = gpxManager,
                             scheduler = scheduler,
+                            selectedFile = selectedFile,
                             onSelectFile = { file ->
                                 selectedFile = file
-                                selectedTab = 0
                                 scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                             },
                             onDeleteFile = { file ->
@@ -471,6 +471,64 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
+            if (validTrackPoints.isNotEmpty()) {
+                val currentFile = remember(selectedFile, ranges) {
+                    selectedFile ?: gpxManager.getGpxFile(scheduler.getActiveRange(ranges))
+                }
+                val stats = remember(currentFile, trackPoints) {
+                    gpxManager.getTrackStatistics(currentFile)
+                }
+                val startTimeStr = validTrackPoints.firstOrNull()?.time?.replace("T", " ")?.replace("Z", "") ?: "-"
+                val endTimeStr = validTrackPoints.lastOrNull()?.time?.replace("T", " ")?.replace("Z", "") ?: "-"
+                val distanceStr = gpxManager.formatDistance(stats.distanceMeters)
+                val durationStr = gpxManager.formatDuration(stats.durationMillis)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (selectedFile != null) "Loaded: ${selectedFile?.name?.replace("track_", "")?.replace(".gpx", "")}" else "Active Track",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (selectedFile != null) {
+                                TextButton(onClick = { selectedFile = null }) {
+                                    Text("Show Current")
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Distance: $distanceStr", style = MaterialTheme.typography.bodySmall)
+                            Text(text = "Total Time: $durationStr", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Start: $startTimeStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                            Text(text = "End: $endTimeStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                }
+            }
 
             if (pickingScheduleIndex != -1) {
                 Box(
@@ -1035,6 +1093,7 @@ fun ScheduleSettingsDialog(
 fun SavedTracksList(
     gpxManager: GpxManager,
     scheduler: TrackingScheduler,
+    selectedFile: java.io.File?,
     onSelectFile: (java.io.File) -> Unit,
     onDeleteFile: (java.io.File) -> Unit,
     onExportFile: (java.io.File) -> Unit,
@@ -1044,9 +1103,19 @@ fun SavedTracksList(
     var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     LaunchedEffect(fileToDelete == null) {
         files = gpxManager.getAllGpxFiles()
+    }
+
+    LaunchedEffect(selectedFile, files) {
+        if (selectedFile != null) {
+            val index = files.indexOfFirst { it.absolutePath == selectedFile.absolutePath }
+            if (index != -1) {
+                listState.animateScrollToItem(index)
+            }
+        }
     }
 
     if (files.isEmpty()) {
@@ -1056,18 +1125,23 @@ fun SavedTracksList(
         return
     }
 
-    LazyColumn(modifier = modifier) {
+    LazyColumn(state = listState, modifier = modifier) {
         items(files) { file ->
             val activeRange = scheduler.getActiveRange(ranges)
-            val isActiveFile = file.absolutePath == gpxManager.getGpxFile(activeRange).absolutePath
+            val activeFile = gpxManager.getGpxFile(activeRange)
+            val isLoaded = file == selectedFile
+            val isActiveFile = file.absolutePath == activeFile.absolutePath
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
                     .background(
-                        if (isActiveFile) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                        else MaterialTheme.colorScheme.surfaceVariant,
+                        when {
+                            isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                            isActiveFile -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        },
                         RoundedCornerShape(8.dp)
                     )
                     .padding(12.dp),
@@ -1096,8 +1170,9 @@ fun SavedTracksList(
                         Text(
                             text = formattedName,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isActiveFile) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isLoaded || isActiveFile) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
                         if (isActiveFile) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
