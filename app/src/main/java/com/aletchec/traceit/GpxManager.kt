@@ -18,6 +18,11 @@ class GpxManager(private val context: Context) {
         val isIgnored: Boolean = false
     )
 
+    data class TrackStatistics(
+        val durationMillis: Long,
+        val distanceMeters: Float
+    )
+
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
@@ -91,5 +96,49 @@ class GpxManager(private val context: Context) {
             points.add(TrackPoint(lat, lon, ele, time, isIgnored))
         }
         return points
+    }
+
+    fun getTrackStatistics(file: File): TrackStatistics {
+        val points = getTrackPoints(file).filter { !it.isIgnored }
+        if (points.isEmpty()) return TrackStatistics(0L, 0f)
+
+        var totalDistance = 0f
+        for (i in 0 until points.size - 1) {
+            val p1 = points[i]
+            val p2 = points[i + 1]
+            val results = FloatArray(1)
+            Location.distanceBetween(p1.latitude, p1.longitude, p2.latitude, p2.longitude, results)
+            totalDistance += results[0]
+        }
+
+        val durationMillis = try {
+            val firstTime = dateFormat.parse(points.first().time)?.time ?: 0L
+            val lastTime = dateFormat.parse(points.last().time)?.time ?: 0L
+            if (lastTime >= firstTime) lastTime - firstTime else 0L
+        } catch (e: Exception) {
+            0L
+        }
+
+        return TrackStatistics(durationMillis, totalDistance)
+    }
+
+    fun formatDuration(durationMillis: Long): String {
+        val seconds = durationMillis / 1000
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return when {
+            hours > 0 -> String.format(Locale.US, "%dh %02dm", hours, minutes)
+            minutes > 0 -> String.format(Locale.US, "%dm %02ds", minutes, secs)
+            else -> String.format(Locale.US, "%ds", secs)
+        }
+    }
+
+    fun formatDistance(distanceMeters: Float): String {
+        return if (distanceMeters >= 1000f) {
+            String.format(Locale.US, "%.2f km", distanceMeters / 1000f)
+        } else {
+            String.format(Locale.US, "%.0f m", distanceMeters)
+        }
     }
 }

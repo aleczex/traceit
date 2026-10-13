@@ -971,6 +971,12 @@ fun SavedTracksList(
                         }
                     }
                     Spacer(modifier = Modifier.height(2.dp))
+                    val stats = remember(file) { gpxManager.getTrackStatistics(file) }
+                    Text(
+                        text = "Duration: ${gpxManager.formatDuration(stats.durationMillis)} | Distance: ${gpxManager.formatDistance(stats.distanceMeters)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                     Text(
                         text = "Size: ${String.format(Locale.US, "%.2f", file.length() / 1024.0)} KB",
                         style = MaterialTheme.typography.bodySmall
