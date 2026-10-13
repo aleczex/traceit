@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -86,6 +87,7 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import org.osmdroid.views.overlay.Polyline
+import java.util.Calendar
 import java.util.Locale
 
 enum class PickTarget { START, END }
@@ -131,7 +133,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     var showTimePicker by remember { mutableStateOf(false) }
     var pickingStartTime by remember { mutableStateOf(true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
-    var gpsIntervalSeconds by remember { mutableIntStateOf(scheduler.getGpsIntervalSeconds(context)) }
+    var editingIntervalScheduleIndex by remember { mutableIntStateOf(-1) }
     var showIntervalDialog by remember { mutableStateOf(false) }
 
     var pickingScheduleIndex by remember { mutableIntStateOf(-1) }
@@ -139,6 +141,9 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     var editingRadiusScheduleIndex by remember { mutableIntStateOf(-1) }
     var editingRadiusTarget by remember { mutableStateOf(PickTarget.START) }
     var showRadiusDialog by remember { mutableStateOf(false) }
+
+    var editingDaysScheduleIndex by remember { mutableIntStateOf(-1) }
+    var showDaysDialog by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
@@ -288,12 +293,19 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 ) {
                     when (selectedTab) {
                         0 -> {
-                            Column {
+                            Column(modifier = Modifier.fillMaxSize()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(text = "Tracking Schedule", style = MaterialTheme.typography.titleMedium)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    IconButton(onClick = {
+                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
+                                        scheduler.saveSchedules(context, ranges)
+                                    }) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Schedule")
+                                    }
                                     Spacer(modifier = Modifier.weight(1f))
                                     TextButton(onClick = {
                                         val file = selectedFile ?: run {
@@ -309,7 +321,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 240.dp)
+                                        .weight(1f)
                                 ) {
                                     itemsIndexed(ranges) { index, range ->
                                         ScheduleItem(
@@ -321,6 +333,10 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                                 if (pickingScheduleIndex == index) pickingScheduleIndex = -1
                                                 scheduler.saveSchedules(context, ranges)
                                             },
+                                            onNameChanged = { newName ->
+                                                ranges[index] = range.copy(name = newName)
+                                                scheduler.saveSchedules(context, ranges)
+                                            },
                                             onEditStart = {
                                                 currentRangeIndex = index
                                                 pickingStartTime = true
@@ -330,6 +346,10 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                                 currentRangeIndex = index
                                                 pickingStartTime = false
                                                 showTimePicker = true
+                                            },
+                                            onEditDays = {
+                                                editingDaysScheduleIndex = index
+                                                showDaysDialog = true
                                             },
                                             onTogglePickStart = {
                                                 if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
@@ -366,39 +386,12 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                             onClearEndPoint = {
                                                 ranges[index] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
                                                 scheduler.saveSchedules(context, ranges)
+                                            },
+                                            onEditInterval = {
+                                                editingIntervalScheduleIndex = index
+                                                showIntervalDialog = true
                                             }
                                         )
-                                    }
-                                }
-
-                                OutlinedButton(
-                                    onClick = {
-                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
-                                        scheduler.saveSchedules(context, ranges)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Add Range")
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = "GPS Check Interval", style = MaterialTheme.typography.titleSmall)
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = "Check position every $gpsIntervalSeconds sec", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    TextButton(onClick = { showIntervalDialog = true }) {
-                                        Text("Change")
                                     }
                                 }
 
@@ -460,23 +453,51 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 onPointSelectedOnMap = { point ->
                     if (pickingScheduleIndex in ranges.indices) {
                         val currentRange = ranges[pickingScheduleIndex]
-                        ranges[pickingScheduleIndex] = if (pickTarget == PickTarget.START) {
+                        if (pickTarget == PickTarget.START) {
+                            if (currentRange.endLat != null && currentRange.endLon != null && currentRange.endRadiusMeters > 0) {
+                                val results = FloatArray(1)
+                                android.location.Location.distanceBetween(
+                                    point.latitude, point.longitude,
+                                    currentRange.endLat, currentRange.endLon,
+                                    results
+                                )
+                                if (results[0] <= currentRange.endRadiusMeters) {
+                                    Toast.makeText(context, "Start point cannot be within end point range", Toast.LENGTH_SHORT).show()
+                                    pickingScheduleIndex = -1
+                                    return@TrackMap
+                                }
+                            }
                             val defaultRadius = if (currentRange.startRadiusMeters > 0) currentRange.startRadiusMeters else 50
-                            currentRange.copy(
+                            ranges[pickingScheduleIndex] = currentRange.copy(
                                 startLat = point.latitude,
                                 startLon = point.longitude,
                                 startRadiusMeters = defaultRadius
                             )
+                            scheduler.saveSchedules(context, ranges)
+                            Toast.makeText(context, "Start point set for schedule!", Toast.LENGTH_SHORT).show()
                         } else {
+                            if (currentRange.startLat != null && currentRange.startLon != null && currentRange.startRadiusMeters > 0) {
+                                val results = FloatArray(1)
+                                android.location.Location.distanceBetween(
+                                    point.latitude, point.longitude,
+                                    currentRange.startLat, currentRange.startLon,
+                                    results
+                                )
+                                if (results[0] <= currentRange.startRadiusMeters) {
+                                    Toast.makeText(context, "End point cannot be within start point range", Toast.LENGTH_SHORT).show()
+                                    pickingScheduleIndex = -1
+                                    return@TrackMap
+                                }
+                            }
                             val defaultRadius = if (currentRange.endRadiusMeters > 0) currentRange.endRadiusMeters else 50
-                            currentRange.copy(
+                            ranges[pickingScheduleIndex] = currentRange.copy(
                                 endLat = point.latitude,
                                 endLon = point.longitude,
                                 endRadiusMeters = defaultRadius
                             )
+                            scheduler.saveSchedules(context, ranges)
+                            Toast.makeText(context, "End point set for schedule!", Toast.LENGTH_SHORT).show()
                         }
-                        scheduler.saveSchedules(context, ranges)
-                        Toast.makeText(context, "${if (pickTarget == PickTarget.START) "Start" else "End"} point set for schedule!", Toast.LENGTH_SHORT).show()
                     }
                     pickingScheduleIndex = -1
                 },
@@ -531,14 +552,107 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    if (showIntervalDialog) {
-        var intervalInput by remember { mutableStateOf(gpsIntervalSeconds.toString()) }
+    if (showDaysDialog && editingDaysScheduleIndex in ranges.indices) {
+        val currentRange = ranges[editingDaysScheduleIndex]
+        var selectedDays by remember { mutableStateOf(currentRange.daysOfWeek) }
+
         AlertDialog(
-            onDismissRequest = { showIntervalDialog = false },
-            title = { Text("GPS Check Interval") },
+            onDismissRequest = { showDaysDialog = false },
+            title = { Text("Select Days of Week") },
             text = {
                 Column {
-                    Text("Enter how often GPS position should be checked (in seconds):")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                    ) {
+                        OutlinedButton(onClick = {
+                            selectedDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
+                        }) {
+                            Text("Mo-Su")
+                        }
+                        OutlinedButton(onClick = {
+                            selectedDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY)
+                        }) {
+                            Text("Mo-Fri")
+                        }
+                        OutlinedButton(onClick = {
+                            selectedDays = setOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
+                        }) {
+                            Text("Su-Sa")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val dayEntries = listOf(
+                        Calendar.MONDAY to "Monday",
+                        Calendar.TUESDAY to "Tuesday",
+                        Calendar.WEDNESDAY to "Wednesday",
+                        Calendar.THURSDAY to "Thursday",
+                        Calendar.FRIDAY to "Friday",
+                        Calendar.SATURDAY to "Saturday",
+                        Calendar.SUNDAY to "Sunday"
+                    )
+
+                    dayEntries.forEach { (dayConstant, dayName) ->
+                        val isSelected = selectedDays.contains(dayConstant)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else Color.Transparent,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(8.dp)
+                                .clickable {
+                                    selectedDays = if (isSelected) {
+                                        if (selectedDays.size > 1) selectedDays - dayConstant else selectedDays
+                                    } else {
+                                        selectedDays + dayConstant
+                                    }
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = dayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Text("✓", color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ranges[editingDaysScheduleIndex] = currentRange.copy(daysOfWeek = selectedDays)
+                    scheduler.saveSchedules(context, ranges)
+                    showDaysDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDaysDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showIntervalDialog && editingIntervalScheduleIndex in ranges.indices) {
+        val currentRange = ranges[editingIntervalScheduleIndex]
+        var intervalInput by remember { mutableStateOf(currentRange.gpsIntervalSeconds.toString()) }
+
+        AlertDialog(
+            onDismissRequest = { showIntervalDialog = false },
+            title = { Text("Check Interval") },
+            text = {
+                Column {
+                    Text("Enter how often GPS position should be checked for this schedule (in seconds):")
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = intervalInput,
@@ -552,8 +666,8 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 TextButton(onClick = {
                     val sec = intervalInput.toIntOrNull()
                     if (sec != null && sec > 0) {
-                        gpsIntervalSeconds = sec
-                        scheduler.saveGpsIntervalSeconds(context, sec)
+                        ranges[editingIntervalScheduleIndex] = currentRange.copy(gpsIntervalSeconds = sec)
+                        scheduler.saveSchedules(context, ranges)
                         showIntervalDialog = false
                     } else {
                         Toast.makeText(context, "Please enter a valid positive number", Toast.LENGTH_SHORT).show()
@@ -617,14 +731,42 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     }
 }
 
+fun formatDays(days: Set<Int>): String {
+    val allDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
+    val workDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY)
+    val suSaDays = setOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
+
+    return when {
+        days == allDays || days == suSaDays -> "Mo-Su"
+        days == workDays -> "Mo-Fri"
+        days.size == 7 -> "Su-Sa"
+        else -> {
+            val dayNames = mapOf(
+                Calendar.MONDAY to "Mon",
+                Calendar.TUESDAY to "Tue",
+                Calendar.WEDNESDAY to "Wed",
+                Calendar.THURSDAY to "Thu",
+                Calendar.FRIDAY to "Fri",
+                Calendar.SATURDAY to "Sat",
+                Calendar.SUNDAY to "Sun"
+            )
+            val sortedDays = listOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
+            sortedDays.filter { days.contains(it) }.mapNotNull { dayNames[it] }.joinToString(", ")
+        }
+    }
+}
+
 @Composable
 fun ScheduleItem(
     range: TrackingScheduler.TimeRange,
     isPickingStart: Boolean,
     isPickingEnd: Boolean,
     onDelete: () -> Unit,
+    onNameChanged: (String) -> Unit,
     onEditStart: () -> Unit,
     onEditEnd: () -> Unit,
+    onEditDays: () -> Unit,
+    onEditInterval: () -> Unit,
     onTogglePickStart: () -> Unit,
     onTogglePickEnd: () -> Unit,
     onSetStartRadius: () -> Unit,
@@ -643,6 +785,15 @@ fun ScheduleItem(
             )
             .padding(8.dp)
     ) {
+        OutlinedTextField(
+            value = range.name,
+            onValueChange = onNameChanged,
+            label = { Text("Schedule Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -653,6 +804,14 @@ fun ScheduleItem(
             Text("-")
             TextButton(onClick = onEditEnd) {
                 Text(String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute))
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            OutlinedButton(onClick = onEditDays) {
+                Text(formatDays(range.daysOfWeek))
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            OutlinedButton(onClick = onEditInterval) {
+                Text("${range.gpsIntervalSeconds}s")
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = onDelete) {
@@ -879,6 +1038,48 @@ fun SavedTracksList(
     }
 }
 
+fun createNumberedMarker(
+    context: android.content.Context,
+    map: MapView,
+    position: GeoPoint,
+    title: String,
+    tintColor: Int,
+    label: String
+): Marker {
+    val size = 120
+    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+
+    val baseDrawable = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+        setTint(tintColor)
+    }
+    baseDrawable?.setBounds(0, 0, size, size)
+    baseDrawable?.draw(canvas)
+
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.WHITE
+        textSize = when {
+            label.length <= 3 -> 36f
+            label.length <= 6 -> 28f
+            label.length <= 10 -> 20f
+            else -> 16f
+        }
+        isAntiAlias = true
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    canvas.drawText(label, size / 2f, size / 2.5f, paint)
+
+    val drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+
+    return Marker(map).apply {
+        this.position = position
+        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+        this.title = title
+        icon = drawable
+    }
+}
+
 @Composable
 fun TrackMap(
     points: List<GpxManager.TrackPoint>,
@@ -918,6 +1119,86 @@ fun TrackMap(
         update = { map ->
             map.overlays.clear()
 
+            for ((index, range) in ranges.withIndex()) {
+                if (pickingScheduleIndex != -1 && index != pickingScheduleIndex) {
+                    continue
+                }
+                // Start Point
+                if (range.startLat != null && range.startLon != null) {
+                    val center = GeoPoint(range.startLat, range.startLon)
+                    val titleStr = "${range.name} - Start Point (${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)})"
+                    val startMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.GREEN, range.name)
+                    map.overlays.add(startMarker)
+
+                    if (range.startRadiusMeters > 0) {
+                        val circle = Polygon().apply {
+                            setPoints(Polygon.pointsAsCircle(center, range.startRadiusMeters.toDouble()))
+                            fillPaint.color = android.graphics.Color.argb(40, 0, 255, 0)
+                            outlinePaint.color = android.graphics.Color.GREEN
+                            outlinePaint.strokeWidth = 3f
+                        }
+                        map.overlays.add(circle)
+                    }
+                }
+
+                // End Point
+                if (range.endLat != null && range.endLon != null) {
+                    val center = GeoPoint(range.endLat, range.endLon)
+                    val titleStr = "${range.name} - End Point (${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)})"
+                    val endMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.RED, range.name)
+                    map.overlays.add(endMarker)
+
+                    if (range.endRadiusMeters > 0) {
+                        val circle = Polygon().apply {
+                            setPoints(Polygon.pointsAsCircle(center, range.endRadiusMeters.toDouble()))
+                            fillPaint.color = android.graphics.Color.argb(40, 255, 0, 0)
+                            outlinePaint.color = android.graphics.Color.RED
+                            outlinePaint.strokeWidth = 3f
+                        }
+                        map.overlays.add(circle)
+                    }
+                }
+            }
+
+            val validPoints = points.filter { !it.isIgnored }
+            if (validPoints.isNotEmpty()) {
+                val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
+
+                val polyline = Polyline().apply {
+                    setPoints(geoPoints)
+                    outlinePaint.color = android.graphics.Color.BLUE
+                    outlinePaint.strokeWidth = 5f
+                }
+                map.overlays.add(polyline)
+
+                val startMarker = Marker(map).apply {
+                    position = geoPoints.first()
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = "Start"
+                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                        setTint(android.graphics.Color.GREEN)
+                    }
+                }
+                map.overlays.add(startMarker)
+
+                val endMarker = Marker(map).apply {
+                    position = geoPoints.last()
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = "Latest Position"
+                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                        setTint(android.graphics.Color.RED)
+                    }
+                }
+                map.overlays.add(endMarker)
+
+                if (!hasCenteredInitially) {
+                    hasCenteredInitially = true
+                    map.post {
+                        map.controller.setCenter(geoPoints.last())
+                    }
+                }
+            }
+
             val eventsReceiver = object : MapEventsReceiver {
                 override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
                     if (pickingScheduleIndex != -1 && p != null) {
@@ -936,58 +1217,6 @@ fun TrackMap(
                 }
             }
             map.overlays.add(MapEventsOverlay(eventsReceiver))
-
-            for (range in ranges) {
-                // Start Point
-                if (range.startLat != null && range.startLon != null) {
-                    val center = GeoPoint(range.startLat, range.startLon)
-                    val startMarker = Marker(map).apply {
-                        position = center
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        title = "Start Point (${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)})"
-                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
-                            setTint(android.graphics.Color.GREEN)
-                        }
-                    }
-                    map.overlays.add(startMarker)
-
-                    if (range.startRadiusMeters > 0) {
-                        val circle = Polygon().apply {
-                            setPoints(Polygon.pointsAsCircle(center, range.startRadiusMeters.toDouble()))
-                            fillPaint.color = android.graphics.Color.argb(40, 0, 255, 0)
-                            outlinePaint.color = android.graphics.Color.GREEN
-                            outlinePaint.strokeWidth = 3f
-                        }
-                        map.overlays.add(circle)
-                    }
-                }
-
-                // End Point
-                if (range.endLat != null && range.endLon != null) {
-                    val center = GeoPoint(range.endLat, range.endLon)
-                    val endMarker = Marker(map).apply {
-                        position = center
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        title = "End Point (${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)})"
-                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
-                            setTint(android.graphics.Color.RED)
-                        }
-                    }
-                    map.overlays.add(endMarker)
-
-                    if (range.endRadiusMeters > 0) {
-                        val circle = Polygon().apply {
-                            setPoints(Polygon.pointsAsCircle(center, range.endRadiusMeters.toDouble()))
-                            fillPaint.color = android.graphics.Color.argb(40, 255, 0, 0)
-                            outlinePaint.color = android.graphics.Color.RED
-                            outlinePaint.strokeWidth = 3f
-                        }
-                        map.overlays.add(circle)
-                    }
-                }
-            }
-
-            val validPoints = points.filter { !it.isIgnored }
             if (validPoints.isNotEmpty()) {
                 val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
 

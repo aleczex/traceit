@@ -6,6 +6,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class GpxManager(private val context: Context) {
 
@@ -17,7 +18,9 @@ class GpxManager(private val context: Context) {
         val isIgnored: Boolean = false
     )
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
     fun getGpxFile(range: TrackingScheduler.TimeRange? = null): File {
         val dateStr = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())

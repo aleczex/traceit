@@ -16,7 +16,13 @@ class TrackingScheduler {
         val startRadiusMeters: Int = 0,
         val endLat: Double? = null,
         val endLon: Double? = null,
-        val endRadiusMeters: Int = 0
+        val endRadiusMeters: Int = 0,
+        val daysOfWeek: Set<Int> = setOf(
+            Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY,
+            Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY
+        ),
+        val name: String = "Schedule",
+        val gpsIntervalSeconds: Int = 5
     )
 
     fun isTrackingAllowed(ranges: List<TimeRange>): Boolean {
@@ -27,11 +33,14 @@ class TrackingScheduler {
         if (ranges.isEmpty()) return null
 
         val now = Calendar.getInstance()
+        val currentDayOfWeek = now.get(Calendar.DAY_OF_WEEK)
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val currentMinute = now.get(Calendar.MINUTE)
         val currentTimeInMinutes = currentHour * 60 + currentMinute
 
         for (range in ranges) {
+            if (!range.daysOfWeek.contains(currentDayOfWeek)) continue
+
             val startInMinutes = range.startHour * 60 + range.startMinute
             val endInMinutes = range.endHour * 60 + range.endMinute
 
@@ -47,9 +56,11 @@ class TrackingScheduler {
 
     fun serializeRanges(ranges: List<TimeRange>): String {
         return ranges.joinToString("; ") {
+            val namePart = if (it.name.isNotBlank()) it.name else "Schedule"
             val start = String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute)
             val end = String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
-            val timeStr = "$start-$end"
+            val daysStr = "[" + it.daysOfWeek.sorted().joinToString(",") + "]"
+            val timeStr = "$start-$end$daysStr"
 
             val startStr = if (it.startLat != null && it.startLon != null) {
                 "${it.startLat},${it.startLon},${it.startRadiusMeters}"
@@ -59,11 +70,10 @@ class TrackingScheduler {
                 "${it.endLat},${it.endLon},${it.endRadiusMeters}"
             } else ""
 
-            if (startStr.isNotEmpty() || endStr.isNotEmpty()) {
-                "$timeStr@$startStr@$endStr"
-            } else {
-                timeStr
-            }
+            val intervalStr = it.gpsIntervalSeconds.toString()
+
+            val body = "$timeStr@$startStr@$endStr@$intervalStr"
+            "$namePart|$body"
         }
     }
 
@@ -74,8 +84,30 @@ class TrackingScheduler {
                 val str = rangeStr.trim()
                 if (str.isEmpty()) return@mapNotNull null
 
-                val partsAt = str.split("@")
-                val timePart = partsAt[0].trim()
+                val pipeSplit = str.split("|", limit = 2)
+                val scheduleName = if (pipeSplit.size == 2) pipeSplit[0].trim() else "Schedule"
+                val rangeContent = if (pipeSplit.size == 2) pipeSplit[1].trim() else pipeSplit[0].trim()
+
+                val partsAt = rangeContent.split("@")
+                var timePart = partsAt[0].trim()
+
+                var daysSet = setOf(
+                    Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY,
+                    Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY
+                )
+
+                if (timePart.contains("[") && timePart.contains("]")) {
+                    val startIdx = timePart.indexOf('[')
+                    val endIdx = timePart.lastIndexOf(']')
+                    if (startIdx < endIdx) {
+                        val daysStr = timePart.substring(startIdx + 1, endIdx)
+                        timePart = timePart.substring(0, startIdx).trim()
+                        val dayInts = daysStr.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+                        if (dayInts.isNotEmpty()) {
+                            daysSet = dayInts
+                        }
+                    }
+                }
 
                 val parts = timePart.split("-")
                 if (parts.size == 2) {
@@ -110,11 +142,17 @@ class TrackingScheduler {
                             }
                         }
 
+                        val intervalPart = partsAt.getOrNull(3)?.trim()
+                        val interval = intervalPart?.toIntOrNull() ?: 5
+
                         TimeRange(
                             start[0].toInt(), start[1].toInt(),
                             end[0].toInt(), end[1].toInt(),
                             startLat, startLon, startRadius,
-                            endLat, endLon, endRadius
+                            endLat, endLon, endRadius,
+                            daysSet,
+                            scheduleName,
+                            interval
                         )
                     } else null
                 } else null
@@ -137,15 +175,5 @@ class TrackingScheduler {
         } else {
             listOf(TimeRange(8, 0, 16, 0))
         }
-    }
-
-    fun getGpsIntervalSeconds(context: Context): Int {
-        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-        return sharedPrefs.getInt("gps_interval_seconds", 5)
-    }
-
-    fun saveGpsIntervalSeconds(context: Context, seconds: Int) {
-        val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-        sharedPrefs.edit().putInt("gps_interval_seconds", seconds).apply()
     }
 }

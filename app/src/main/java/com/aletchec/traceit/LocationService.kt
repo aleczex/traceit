@@ -185,6 +185,7 @@ class LocationService : Service() {
                 hasDepartedStartRadius = false
                 hasArrivedAtEndRadius = false
                 lastPointInsideStartRadius = null
+                startLocationUpdates()
             }
 
             if (hasArrivedAtEndRadius) {
@@ -250,12 +251,14 @@ class LocationService : Service() {
     }
 
     private fun startLocationUpdates() {
-        val intervalSeconds = scheduler.getGpsIntervalSeconds(this)
+        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
+        val intervalSeconds = activeRange?.gpsIntervalSeconds ?: 5
         val intervalMillis = intervalSeconds * 1000L
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
             .setMinUpdateIntervalMillis(intervalMillis)
             .build()
         try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
         } catch (unlikely: SecurityException) {
             stopSelf()
