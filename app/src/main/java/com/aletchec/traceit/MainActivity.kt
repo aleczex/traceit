@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
@@ -41,6 +44,7 @@ import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -1489,49 +1494,165 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
         return
     }
 
-    LazyColumn(modifier = modifier) {
-        items(points.reversed()) { pt ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(
-                        if (pt.isIgnored) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(12.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Time: ${pt.time.replace("T", " ").replace("Z", "")}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (pt.isIgnored) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val reversedPoints = remember(points) { points.reversed() }
+
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(
+                items = reversedPoints,
+                key = { pt -> "${pt.time}_${pt.latitude}_${pt.longitude}" }
+            ) { pt ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(
+                            if (pt.isIgnored) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(8.dp)
                         )
-                        if (pt.isIgnored) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "ignored",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                text = "Time: ${pt.time.replace("T", " ").replace("Z", "")}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (pt.isIgnored) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                             )
+                            if (pt.isIgnored) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "ignored",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Lat: ${pt.latitude}, Lon: ${pt.longitude}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Elevation: ${pt.elevation} m",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Lat: ${pt.latitude}, Lon: ${pt.longitude}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Elevation: ${pt.elevation} m",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
                 }
+            }
+        }
+
+        // Interactive Vertical Scrollbar
+        val totalItems = points.size
+        if (totalItems > 0) {
+            val firstVisibleItemIndex = listState.firstVisibleItemIndex
+            val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
+            val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
+                firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
+            } else {
+                0f
+            }.coerceIn(0f, 1f)
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(24.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 8.dp)
+                    .pointerInput(totalItems, visibleItemCount) {
+                        detectVerticalDragGestures(
+                            onDragStart = { offset ->
+                                val trackHeight = size.height.toFloat()
+                                if (trackHeight > 0f) {
+                                    val tapFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
+                                    val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(targetIndex)
+                                    }
+                                }
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                val trackHeight = size.height.toFloat()
+                                if (trackHeight > 0f) {
+                                    val dragFraction = (dragAmount / trackHeight).coerceIn(-1f, 1f)
+                                    val currentFirstVisible = listState.firstVisibleItemIndex
+                                    val currentProgress = if (totalItems > visibleItemCount && totalItems > 1) {
+                                        currentFirstVisible.toFloat() / (totalItems - visibleItemCount).toFloat()
+                                    } else 0f
+                                    val newProgress = (currentProgress + dragFraction).coerceIn(0f, 1f)
+                                    val targetIndex = (newProgress * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(targetIndex)
+                                    }
+                                }
+                            }
+                        )
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                )
+
+                val thumbHeightFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(thumbHeightFraction)
+                        .align(androidx.compose.ui.BiasAlignment(0f, scrollProgress * 2f - 1f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                )
+            }
+        }
+
+        // Top and Bottom Buttons
+        val context = LocalContext.current
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    coroutineScope.launch {
+                        listState.scrollToItem(0)
+                        Toast.makeText(context, "Scroll to Top", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Scroll to Top", modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            FloatingActionButton(
+                onClick = {
+                    coroutineScope.launch {
+                        listState.scrollToItem(points.size - 1)
+                        Toast.makeText(context, "Scroll to Bottom", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Scroll to Bottom", modifier = Modifier.size(20.dp))
             }
         }
     }
