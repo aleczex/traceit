@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,7 +33,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
@@ -133,17 +136,23 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     var showTimePicker by remember { mutableStateOf(false) }
     var pickingStartTime by remember { mutableStateOf(true) }
     var currentRangeIndex by remember { mutableIntStateOf(-1) }
-    var editingIntervalScheduleIndex by remember { mutableIntStateOf(-1) }
-    var showIntervalDialog by remember { mutableStateOf(false) }
 
     var pickingScheduleIndex by remember { mutableIntStateOf(-1) }
     var pickTarget by remember { mutableStateOf(PickTarget.START) }
+
+    // Schedule Settings Dialog State
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var editingSettingsScheduleIndex by remember { mutableIntStateOf(-1) }
+
+    var showDaysDialog by remember { mutableStateOf(false) }
+    var editingDaysScheduleIndex by remember { mutableIntStateOf(-1) }
+
+    var showIntervalDialog by remember { mutableStateOf(false) }
+    var editingIntervalScheduleIndex by remember { mutableIntStateOf(-1) }
+
+    var showRadiusDialog by remember { mutableStateOf(false) }
     var editingRadiusScheduleIndex by remember { mutableIntStateOf(-1) }
     var editingRadiusTarget by remember { mutableStateOf(PickTarget.START) }
-    var showRadiusDialog by remember { mutableStateOf(false) }
-
-    var editingDaysScheduleIndex by remember { mutableIntStateOf(-1) }
-    var showDaysDialog by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
@@ -328,28 +337,9 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                             range = range,
                                             isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
                                             isPickingEnd = pickingScheduleIndex == index && pickTarget == PickTarget.END,
-                                            onDelete = {
-                                                ranges.removeAt(index)
-                                                if (pickingScheduleIndex == index) pickingScheduleIndex = -1
-                                                scheduler.saveSchedules(context, ranges)
-                                            },
-                                            onNameChanged = { newName ->
-                                                ranges[index] = range.copy(name = newName)
-                                                scheduler.saveSchedules(context, ranges)
-                                            },
-                                            onEditStart = {
-                                                currentRangeIndex = index
-                                                pickingStartTime = true
-                                                showTimePicker = true
-                                            },
-                                            onEditEnd = {
-                                                currentRangeIndex = index
-                                                pickingStartTime = false
-                                                showTimePicker = true
-                                            },
-                                            onEditDays = {
-                                                editingDaysScheduleIndex = index
-                                                showDaysDialog = true
+                                            onOpenSettings = {
+                                                editingSettingsScheduleIndex = index
+                                                showSettingsDialog = true
                                             },
                                             onTogglePickStart = {
                                                 if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
@@ -368,28 +358,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                                     pickTarget = PickTarget.END
                                                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                                                 }
-                                            },
-                                            onSetStartRadius = {
-                                                editingRadiusScheduleIndex = index
-                                                editingRadiusTarget = PickTarget.START
-                                                showRadiusDialog = true
-                                            },
-                                            onSetEndRadius = {
-                                                editingRadiusScheduleIndex = index
-                                                editingRadiusTarget = PickTarget.END
-                                                showRadiusDialog = true
-                                            },
-                                            onClearStartPoint = {
-                                                ranges[index] = range.copy(startLat = null, startLon = null, startRadiusMeters = 0)
-                                                scheduler.saveSchedules(context, ranges)
-                                            },
-                                            onClearEndPoint = {
-                                                ranges[index] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
-                                                scheduler.saveSchedules(context, ranges)
-                                            },
-                                            onEditInterval = {
-                                                editingIntervalScheduleIndex = index
-                                                showIntervalDialog = true
                                             }
                                         )
                                     }
@@ -528,6 +496,75 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+
+    // Schedule Settings Dialog
+    if (showSettingsDialog && editingSettingsScheduleIndex in ranges.indices) {
+        val range = ranges[editingSettingsScheduleIndex]
+        ScheduleSettingsDialog(
+            range = range,
+            onDismiss = { showSettingsDialog = false },
+            onUpdate = { updatedRange ->
+                ranges[editingSettingsScheduleIndex] = updatedRange
+                scheduler.saveSchedules(context, ranges)
+            },
+            onDelete = {
+                ranges.removeAt(editingSettingsScheduleIndex)
+                if (pickingScheduleIndex == editingSettingsScheduleIndex) pickingScheduleIndex = -1
+                scheduler.saveSchedules(context, ranges)
+                showSettingsDialog = false
+            },
+            onPickStart = {
+                editingSettingsScheduleIndex = -1
+                showSettingsDialog = false
+                pickingScheduleIndex = editingSettingsScheduleIndex
+                pickTarget = PickTarget.START
+                scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+            },
+            onPickEnd = {
+                editingSettingsScheduleIndex = -1
+                showSettingsDialog = false
+                pickingScheduleIndex = editingSettingsScheduleIndex
+                pickTarget = PickTarget.END
+                scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+            },
+            onEditStart = {
+                currentRangeIndex = editingSettingsScheduleIndex
+                pickingStartTime = true
+                showTimePicker = true
+            },
+            onEditEnd = {
+                currentRangeIndex = editingSettingsScheduleIndex
+                pickingStartTime = false
+                showTimePicker = true
+            },
+            onEditDays = {
+                editingDaysScheduleIndex = editingSettingsScheduleIndex
+                showDaysDialog = true
+            },
+            onEditInterval = {
+                editingIntervalScheduleIndex = editingSettingsScheduleIndex
+                showIntervalDialog = true
+            },
+            onSetStartRadius = {
+                editingRadiusScheduleIndex = editingSettingsScheduleIndex
+                editingRadiusTarget = PickTarget.START
+                showRadiusDialog = true
+            },
+            onSetEndRadius = {
+                editingRadiusScheduleIndex = editingSettingsScheduleIndex
+                editingRadiusTarget = PickTarget.END
+                showRadiusDialog = true
+            },
+            onClearStart = {
+                ranges[editingSettingsScheduleIndex] = range.copy(startLat = null, startLon = null, startRadiusMeters = 0)
+                scheduler.saveSchedules(context, ranges)
+            },
+            onClearEnd = {
+                ranges[editingSettingsScheduleIndex] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
+                scheduler.saveSchedules(context, ranges)
+            }
+        )
     }
 
     if (showTimePicker && currentRangeIndex in ranges.indices) {
@@ -761,20 +798,11 @@ fun ScheduleItem(
     range: TrackingScheduler.TimeRange,
     isPickingStart: Boolean,
     isPickingEnd: Boolean,
-    onDelete: () -> Unit,
-    onNameChanged: (String) -> Unit,
-    onEditStart: () -> Unit,
-    onEditEnd: () -> Unit,
-    onEditDays: () -> Unit,
-    onEditInterval: () -> Unit,
+    onOpenSettings: () -> Unit,
     onTogglePickStart: () -> Unit,
-    onTogglePickEnd: () -> Unit,
-    onSetStartRadius: () -> Unit,
-    onSetEndRadius: () -> Unit,
-    onClearStartPoint: () -> Unit,
-    onClearEndPoint: () -> Unit
+    onTogglePickEnd: () -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
@@ -783,112 +811,224 @@ fun ScheduleItem(
                 else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(8.dp)
             )
-            .padding(8.dp)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedTextField(
-            value = range.name,
-            onValueChange = onNameChanged,
-            label = { Text("Schedule Name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onEditStart) {
-                Text(String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = range.name.ifBlank { "Schedule" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = String.format(Locale.US, "%02d:%02d - %02d:%02d", range.startHour, range.startMinute, range.endHour, range.endMinute),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Text("-")
-            TextButton(onClick = onEditEnd) {
-                Text(String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute))
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = formatDays(range.daysOfWeek),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${range.gpsIntervalSeconds}s interval",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            OutlinedButton(onClick = onEditDays) {
-                Text(formatDays(range.daysOfWeek))
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-            OutlinedButton(onClick = onEditInterval) {
-                Text("${range.gpsIntervalSeconds}s")
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete range")
-            }
-        }
-
-        // Start Point Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val startInfo = if (range.startLat != null && range.startLon != null) {
-                val radiusStr = if (range.startRadiusMeters > 0) "${range.startRadiusMeters}m radius" else "no radius"
-                "Start: ${String.format(Locale.US, "%.4f, %.4f", range.startLat, range.startLon)} ($radiusStr)"
-            } else {
-                "Start: Not set"
-            }
-
-            Text(
-                text = startInfo,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
-            )
-
-            TextButton(onClick = onTogglePickStart) {
-                Text(if (isPickingStart) "Cancel" else "Pick Start")
-            }
-
-            if (range.startLat != null && range.startLon != null) {
-                TextButton(onClick = onSetStartRadius) {
-                    Text("Radius")
-                }
-                IconButton(onClick = onClearStartPoint) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear start point")
-                }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val hasStart = range.startLat != null && range.startLon != null
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Start Point",
+                    tint = if (hasStart) Color(0xFF2E7D32) else Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = if (hasStart) "Start (${range.startRadiusMeters}m)" else "Start: -",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (hasStart) Color(0xFF2E7D32) else Color.Gray
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                val hasEnd = range.endLat != null && range.endLon != null
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "End Point",
+                    tint = if (hasEnd) Color(0xFFC62828) else Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = if (hasEnd) "End (${range.endRadiusMeters}m)" else "End: -",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (hasEnd) Color(0xFFC62828) else Color.Gray
+                )
             }
         }
 
-        // End Point Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val endInfo = if (range.endLat != null && range.endLon != null) {
-                val radiusStr = if (range.endRadiusMeters > 0) "${range.endRadiusMeters}m radius" else "no radius"
-                "End: ${String.format(Locale.US, "%.4f, %.4f", range.endLat, range.endLon)} ($radiusStr)"
-            } else {
-                "End: Not set"
-            }
-
-            Text(
-                text = endInfo,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
-            )
-
-            TextButton(onClick = onTogglePickEnd) {
-                Text(if (isPickingEnd) "Cancel" else "Pick End")
-            }
-
-            if (range.endLat != null && range.endLon != null) {
-                TextButton(onClick = onSetEndRadius) {
-                    Text("Radius")
-                }
-                IconButton(onClick = onClearEndPoint) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear end point")
-                }
-            }
+        IconButton(onClick = onOpenSettings) {
+            Icon(Icons.Default.Settings, contentDescription = "Schedule Settings")
         }
     }
+}
+
+@Composable
+fun ScheduleSettingsDialog(
+    range: TrackingScheduler.TimeRange,
+    onDismiss: () -> Unit,
+    onUpdate: (TrackingScheduler.TimeRange) -> Unit,
+    onDelete: () -> Unit,
+    onPickStart: () -> Unit,
+    onPickEnd: () -> Unit,
+    onEditStart: () -> Unit,
+    onEditEnd: () -> Unit,
+    onEditDays: () -> Unit,
+    onEditInterval: () -> Unit,
+    onSetStartRadius: () -> Unit,
+    onSetEndRadius: () -> Unit,
+    onClearStart: () -> Unit,
+    onClearEnd: () -> Unit
+) {
+    var nameInput by remember { mutableStateOf(range.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Schedule Settings") },
+        text = {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+            ) {
+                item {
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = {
+                            nameInput = it
+                            onUpdate(range.copy(name = it))
+                        },
+                        label = { Text("Schedule Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Time & Duration", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(onClick = onEditStart, modifier = Modifier.weight(1f)) {
+                            Text("Start: ${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)}")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(onClick = onEditEnd, modifier = Modifier.weight(1f)) {
+                            Text("End: ${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)}")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(onClick = onEditDays, modifier = Modifier.weight(1f)) {
+                            Text("Days: ${formatDays(range.daysOfWeek)}")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(onClick = onEditInterval, modifier = Modifier.weight(1f)) {
+                            Text("Interval: ${range.gpsIntervalSeconds}s")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Start Point", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val startText = if (range.startLat != null && range.startLon != null) {
+                            String.format(Locale.US, "%.4f, %.4f (%dm)", range.startLat, range.startLon, range.startRadiusMeters)
+                        } else {
+                            "Not set"
+                        }
+                        Text(
+                            text = startText,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onPickStart) {
+                            Text("Pick")
+                        }
+                        if (range.startLat != null && range.startLon != null) {
+                            TextButton(onClick = onSetStartRadius) {
+                                Text("Radius")
+                            }
+                            IconButton(onClick = onClearStart) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear Start", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("End Point", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val endText = if (range.endLat != null && range.endLon != null) {
+                            String.format(Locale.US, "%.4f, %.4f (%dm)", range.endLat, range.endLon, range.endRadiusMeters)
+                        } else {
+                            "Not set"
+                        }
+                        Text(
+                            text = endText,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onPickEnd) {
+                            Text("Pick")
+                        }
+                        if (range.endLat != null && range.endLon != null) {
+                            TextButton(onClick = onSetEndRadius) {
+                                Text("Radius")
+                            }
+                            IconButton(onClick = onClearEnd) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear End", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete Schedule")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable
