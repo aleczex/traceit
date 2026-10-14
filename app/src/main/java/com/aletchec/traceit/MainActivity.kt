@@ -1,6 +1,7 @@
 package com.aletchec.traceit
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -36,21 +37,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.HistoryEdu
+import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -87,6 +97,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.aletchec.traceit.ui.component.AboutAppDialog
+import com.aletchec.traceit.ui.component.OptionsDialog
 import com.aletchec.traceit.ui.theme.TraceItTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -117,6 +129,18 @@ class MainActivity : ComponentActivity() {
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = packageName
 
+        // UMP Consent Request
+        val params = ConsentRequestParameters.Builder().build()
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            params,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
+            },
+            { _ -> }
+        )
+
         enableEdgeToEdge()
         setContent {
             TraceItTheme {
@@ -125,6 +149,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private fun Activity.showPrivacyOptions() {
+    val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+    if (consentInformation.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
+        UserMessagingPlatform.showPrivacyOptionsForm(this) { formError ->
+            if (formError != null) {
+                Toast.makeText(this, formError.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    } else {
+        Toast.makeText(this, getString(R.string.privacy_form_not_available), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -167,6 +204,23 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
     var showRadiusDialog by remember { mutableStateOf(false) }
     var editingRadiusScheduleIndex by remember { mutableIntStateOf(-1) }
     var editingRadiusTarget by remember { mutableStateOf(PickTarget.START) }
+
+    var showMenuDropdown by remember { mutableStateOf(false) }
+    var showOptionsDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+
+    val onPrivacyClick: () -> Unit = {
+        val activity = context as? Activity
+        activity?.showPrivacyOptions()
+    }
+
+    val onLicensesClick: () -> Unit = {
+        try {
+            context.startActivity(Intent(context, com.google.android.gms.oss.licenses.OssLicensesMenuActivity::class.java))
+        } catch (e: Exception) {
+            Toast.makeText(context, e.message ?: "Failed to open licenses", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
@@ -556,6 +610,68 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 }
             }
 
+            // Top-right Hamburger Menu Button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = { showMenuDropdown = true },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu))
+                }
+
+                DropdownMenu(
+                    expanded = showMenuDropdown,
+                    onDismissRequest = { showMenuDropdown = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.options)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Settings, contentDescription = null)
+                        },
+                        onClick = {
+                            showMenuDropdown = false
+                            showOptionsDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.privacy_options)) },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.PrivacyTip, contentDescription = null)
+                        },
+                        onClick = {
+                            showMenuDropdown = false
+                            onPrivacyClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.open_source_licenses)) },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.HistoryEdu, contentDescription = null)
+                        },
+                        onClick = {
+                            showMenuDropdown = false
+                            onLicensesClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.about)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Info, contentDescription = null)
+                        },
+                        onClick = {
+                            showMenuDropdown = false
+                            showAboutDialog = true
+                        }
+                    )
+                }
+            }
+
             val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
             if (validTrackPoints.isNotEmpty()) {
                 val currentFile = remember(selectedFile, ranges) {
@@ -572,7 +688,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(start = 16.dp, top = 16.dp, end = 72.dp, bottom = 16.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
                         .padding(12.dp)
@@ -910,6 +1026,21 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     Text(stringResource(R.string.cancel))
                 }
             }
+        )
+    }
+
+    if (showOptionsDialog) {
+        OptionsDialog(
+            onDismiss = { showOptionsDialog = false },
+            onPrivacyClick = onPrivacyClick,
+            onLicensesClick = onLicensesClick,
+            onAboutClick = { showAboutDialog = true }
+        )
+    }
+
+    if (showAboutDialog) {
+        AboutAppDialog(
+            onDismiss = { showAboutDialog = false }
         )
     }
 }

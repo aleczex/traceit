@@ -2,6 +2,15 @@
     <string name="app_name">TraceIt</string>
 
     <!-- General / Actions -->
+    <string name="menu">Menú</string>
+    <string name="options">Opciones</string>
+    <string name="privacy_options">Opciones de privacidad</string>
+    <string name="open_source_licenses">Licencias de código abierto</string>
+    <string name="about">Acerca de</string>
+    <string name="about_traceit">Acerca de TraceIt</string>
+    <string name="version_format">v%s</string>
+    <string name="eula_html"><![CDATA[© 2026 Aletchec<br/><br/><a href="https://aletchec.com/traceit.html">Visitar sitio web</a><br/><a href="https://aletchec.com/eula.html">Acuerdo de licencia de usuario final (EULA)</a>]]></string>
+    <string name="privacy_form_not_available">Formulario de privacidad no disponible para su región.</string>
     <string name="cancel">Cancelar</string>
     <string name="close">Cerrar</string>
     <string name="ok">OK</string>
