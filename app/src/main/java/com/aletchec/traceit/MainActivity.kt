@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,8 +38,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
+import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
@@ -247,7 +254,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     .padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = "GPS TraceIt",
+                    text = "TraceIt",
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -276,7 +283,6 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                         selected = selectedTab == 0,
                         onClick = {
                             selectedTab = 0
-                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                         },
                         text = { Text("Schedules") }
                     )
@@ -419,6 +425,9 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+            val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
             TrackMap(
                 points = trackPoints,
                 ranges = ranges,
@@ -474,8 +483,76 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     }
                     pickingScheduleIndex = -1
                 },
+                onMapReady = { map ->
+                    mapViewInstance = map
+                },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // Map controls row (Zoom In, Zoom Out, Crosshair) in bottom right of map
+            val locationLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions()
+            ) { permissions ->
+                val allGranted = permissions.values.all { it }
+                if (allGranted && mapViewInstance != null) {
+                    fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
+                } else {
+                    Toast.makeText(context, "Location permission required to show current position", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 100.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Zoom In (+)
+                FloatingActionButton(
+                    onClick = {
+                        mapViewInstance?.controller?.zoomIn()
+                    },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Zoom In")
+                }
+
+                // Zoom Out (-)
+                FloatingActionButton(
+                    onClick = {
+                        mapViewInstance?.controller?.zoomOut()
+                    },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.Remove, contentDescription = "Zoom Out")
+                }
+
+                // Crosshair (My Location)
+                FloatingActionButton(
+                    onClick = {
+                        val allGranted = permissionsToRequest.all {
+                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                        }
+                        if (allGranted) {
+                            if (mapViewInstance != null) {
+                                fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
+                            }
+                        } else {
+                            locationLauncher.launch(permissionsToRequest.toTypedArray())
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "Show Current GPS Location")
+                }
+            }
 
             val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
             if (validTrackPoints.isNotEmpty()) {
@@ -1312,6 +1389,7 @@ fun TrackMap(
     ranges: List<TrackingScheduler.TimeRange>,
     pickingScheduleIndex: Int,
     onPointSelectedOnMap: (GeoPoint) -> Unit,
+    onMapReady: (MapView) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1324,7 +1402,7 @@ fun TrackMap(
                 clipToOutline = true
                 setTileSource(TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
-                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.ALWAYS)
+                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
 
                 val savedZoom = sharedPrefs.getFloat("map_zoom_level", 16.0f).toDouble()
                 controller.setZoom(savedZoom)
@@ -1337,6 +1415,7 @@ fun TrackMap(
                         return false
                     }
                 })
+                onMapReady(this)
             }
         },
         modifier = modifier
@@ -1503,10 +1582,10 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
             state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
-            items(
+            itemsIndexed(
                 items = reversedPoints,
-                key = { pt -> "${pt.time}_${pt.latitude}_${pt.longitude}" }
-            ) { pt ->
+                key = { index, pt -> "${index}_${pt.time}_${pt.latitude}_${pt.longitude}" }
+            ) { _, pt ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1581,17 +1660,12 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                                     }
                                 }
                             },
-                            onVerticalDrag = { change, dragAmount ->
+                            onVerticalDrag = { change, _ ->
                                 change.consume()
                                 val trackHeight = size.height.toFloat()
                                 if (trackHeight > 0f) {
-                                    val dragFraction = (dragAmount / trackHeight).coerceIn(-1f, 1f)
-                                    val currentFirstVisible = listState.firstVisibleItemIndex
-                                    val currentProgress = if (totalItems > visibleItemCount && totalItems > 1) {
-                                        currentFirstVisible.toFloat() / (totalItems - visibleItemCount).toFloat()
-                                    } else 0f
-                                    val newProgress = (currentProgress + dragFraction).coerceIn(0f, 1f)
-                                    val targetIndex = (newProgress * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                    val dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
+                                    val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
                                     coroutineScope.launch {
                                         listState.scrollToItem(targetIndex)
                                     }
@@ -1685,3 +1759,62 @@ fun TimePickerDialog(
         }
     )
 }
+
+private fun fetchAndCenterLocation(
+    context: android.content.Context,
+    fusedLocationClient: FusedLocationProviderClient,
+    mapView: MapView
+) {
+    try {
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    val geoPoint = GeoPoint(location.latitude, location.longitude)
+                    mapView.controller.animateTo(geoPoint)
+                    mapView.controller.setZoom(16.0)
+                    Toast.makeText(context, "Centered on current GPS position", Toast.LENGTH_SHORT).show()
+                } else {
+                    fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                        if (lastLoc != null) {
+                            val geoPoint = GeoPoint(lastLoc.latitude, lastLoc.longitude)
+                            mapView.controller.animateTo(geoPoint)
+                            mapView.controller.setZoom(16.0)
+                            Toast.makeText(context, "Centered on last known GPS position", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Unable to get current GPS position. Make sure GPS is enabled.", Toast.LENGTH_LONG).show()
+                        }
+                    }.addOnFailureListener {
+                        Toast.makeText(context, "Failed to get location: ${it.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .addOnFailureListener {
+                fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                    if (lastLoc != null) {
+                        val geoPoint = GeoPoint(lastLoc.latitude, lastLoc.longitude)
+                        mapView.controller.animateTo(geoPoint)
+                        mapView.controller.setZoom(16.0)
+                        Toast.makeText(context, "Centered on last known GPS position", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Unable to get current GPS position. Make sure GPS is enabled.", Toast.LENGTH_LONG).show()
+                    }
+                }.addOnFailureListener {
+                    Toast.makeText(context, "Failed to get location: ${it.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error fetching location: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+

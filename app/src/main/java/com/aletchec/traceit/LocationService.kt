@@ -88,6 +88,11 @@ class LocationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val currentRanges = scheduler.loadSchedules(this)
+        if (scheduler.getActiveRange(currentRanges) == null) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         startForegroundService()
         evaluateState()
         return START_STICKY
@@ -139,14 +144,16 @@ class LocationService : Service() {
         if (scheduler.getActiveRange(currentRanges) != null) {
             startTracking()
         } else {
-            stopTrackingAndListenForMotion()
+            stopSelf()
         }
     }
 
     private fun pauseTracking() {
         if (currentState != State.TRACKING) return
         currentState = State.PAUSED
-        updateNotification("Tracking paused. Waiting for movement.")
+        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
+        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "Tracking"
+        updateNotification("TraceIt - Paused ($scheduleName)", "Tracking paused. Waiting for movement.")
         stopLocationUpdates()
         startMotionSensor()
         releaseWakeLock()
@@ -157,23 +164,15 @@ class LocationService : Service() {
         if (currentState == State.TRACKING) return
         currentState = State.TRACKING
         acquireWakeLock()
-        updateNotification("Tracking active.")
+        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
+        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "Tracking"
+        updateNotification("TraceIt - Active ($scheduleName)", "Tracking active.")
         startLocationUpdates()
         startActivityTransitionUpdates()
         stopMotionSensor()
         startStillnessChecker()
     }
 
-    private fun stopTrackingAndListenForMotion() {
-        if (currentState == State.WAITING_FOR_MOTION || currentState == State.IDLE || currentState == State.PAUSED) return
-        currentState = State.WAITING_FOR_MOTION
-        updateNotification("Tracking paused. Waiting for movement.")
-        stopLocationUpdates()
-        stopActivityTransitionUpdates()
-        startMotionSensor()
-        releaseWakeLock()
-        stopStillnessChecker()
-    }
 
     private fun handleLocationUpdate(location: Location) {
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
@@ -189,7 +188,7 @@ class LocationService : Service() {
             }
 
             if (hasArrivedAtEndRadius) {
-                updateNotification("Arrived at destination. Tracking finished for schedule.")
+                updateNotification("TraceIt - Completed (${activeRange.name})", "Arrived at destination. Tracking finished for schedule.")
                 return
             }
 
@@ -204,7 +203,7 @@ class LocationService : Service() {
 
                 if (distanceToStart <= startRadius) {
                     lastPointInsideStartRadius = location
-                    updateNotification("Inside start radius (${distanceToStart.toInt()}m / ${startRadius}m)...")
+                    updateNotification("TraceIt - Waiting (${activeRange.name})", "Inside start radius (${distanceToStart.toInt()}m / ${startRadius}m)...")
                     return
                 } else {
                     hasDepartedStartRadius = true
@@ -213,19 +212,19 @@ class LocationService : Service() {
                     if (firstPoint.latitude != location.latitude || firstPoint.longitude != location.longitude || firstPoint.time != location.time) {
                         gpxManager.appendLocation(file, location)
                     }
-                    updateNotification("Departed start point. Tracking active...")
+                    updateNotification("TraceIt - Active (${activeRange.name})", "Departed start point. Tracking active & storing GPX.")
                     lastLocation = location
                     resetStillnessChecker()
                 }
             } else if (!hasDepartedStartRadius) {
                 hasDepartedStartRadius = true
                 gpxManager.appendLocation(file, location)
-                updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
+                updateNotification("TraceIt - Active (${activeRange.name})", "Tracking active & storing GPX.")
                 lastLocation = location
                 resetStillnessChecker()
             } else {
                 gpxManager.appendLocation(file, location)
-                updateNotification("Tracking active. Last point: ${location.latitude}, ${location.longitude}")
+                // Do not update notification on every GPS point saved
                 lastLocation = location
                 resetStillnessChecker()
             }
@@ -241,12 +240,12 @@ class LocationService : Service() {
 
                 if (distanceToEnd <= endRadius) {
                     hasArrivedAtEndRadius = true
-                    updateNotification("Arrived at destination (${distanceToEnd.toInt()}m <= ${endRadius}m). Trip complete.")
+                    updateNotification("TraceIt - Completed (${activeRange.name})", "Arrived at destination (${distanceToEnd.toInt()}m <= ${endRadius}m). Trip complete.")
                 }
             }
         } else {
             currentActiveSchedule = null
-            evaluateState()
+            stopSelf()
         }
     }
 
@@ -321,7 +320,9 @@ class LocationService : Service() {
             manager.createNotificationChannel(channel)
         }
 
-        val notification = createNotification("Initializing GPS tracking...")
+        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
+        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "TraceIt"
+        val notification = createNotification("TraceIt - Active ($scheduleName)", "Initializing GPS tracking...")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -330,7 +331,7 @@ class LocationService : Service() {
         }
     }
 
-    private fun createNotification(content: String): Notification {
+    private fun createNotification(title: String, content: String): Notification {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -340,7 +341,7 @@ class LocationService : Service() {
         )
 
         return NotificationCompat.Builder(this, "location_channel")
-            .setContentTitle("TraceIt")
+            .setContentTitle(title)
             .setContentText(content)
             .setSmallIcon(R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
@@ -348,9 +349,9 @@ class LocationService : Service() {
             .build()
     }
 
-    private fun updateNotification(content: String) {
+    private fun updateNotification(title: String, content: String) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(1, createNotification(content))
+        manager.notify(1, createNotification(title, content))
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
