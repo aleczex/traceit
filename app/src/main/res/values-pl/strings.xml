@@ -1,0 +1,165 @@
+<resources>
+    <string name="app_name">TraceIt</string>
+
+    <!-- General / Actions -->
+    <string name="cancel">Anuluj</string>
+    <string name="close">Zamknij</string>
+    <string name="ok">OK</string>
+    <string name="load">Wczytaj</string>
+    <string name="delete">Usuń</string>
+    <string name="refresh">Odśwież</string>
+    <string name="pick">Wybierz</string>
+    <string name="radius">Promień</string>
+    <string name="save">Zapisz</string>
+
+    <!-- Tracking Status -->
+    <string name="tracking_active">● ŚLEDZENIE AKTYWNE</string>
+    <string name="outside_schedule">○ POZA HARMONOGRAMEM</string>
+    <string name="active_tag">AKTYWNY</string>
+
+    <!-- Tabs -->
+    <string name="tab_schedules">Harmonogramy</string>
+    <string name="tab_points">Punkty</string>
+    <string name="tab_saved">Zapisane</string>
+
+    <!-- Schedules Tab -->
+    <string name="tracking_schedule">Harmonogram śledzenia</string>
+    <string name="add_schedule">Dodaj harmonogram</string>
+    <string name="schedule_default_name">Harmonogram</string>
+    <string name="no_active_schedule">Brak aktywnego harmonogramu</string>
+    <string name="viewing_track">Wyświetlanie: %s</string>
+    <string name="active_schedule_format">Aktywny: %1$02d:%2$02d-%3$02d:%4$02d</string>
+    <string name="show_current_active_track">Pokaż bieżący aktywny ślad</string>
+    <string name="tap_map_to_set_point">Dotknij mapy, aby ustawić punkt %1$s dla Harmonogramu #%2$d</string>
+    <string name="point_start_upper">POCZĄTKOWY</string>
+    <string name="point_end_upper">KOŃCOWY</string>
+    <string name="start_point_cannot_be_within_end">Punkt początkowy nie może znajdować się w zasięgu punktu końcowego</string>
+    <string name="start_point_set">Ustawiono punkt początkowy dla harmonogramu!</string>
+    <string name="end_point_cannot_be_within_start">Punkt końcowy nie może znajdować się w zasięgu punktu początkowego</string>
+    <string name="end_point_set">Ustawiono punkt końcowy dla harmonogramu!</string>
+
+    <!-- Schedule Item Details -->
+    <string name="interval_seconds_format">interwał %ds</string>
+    <string name="start_radius_format">Start (%dm)</string>
+    <string name="start_not_set">Start: -</string>
+    <string name="end_radius_format">Koniec (%dm)</string>
+    <string name="end_not_set">Koniec: -</string>
+    <string name="start_point_desc">Punkt początkowy</string>
+    <string name="end_point_desc">Punkt końcowy</string>
+
+    <!-- Settings Dialog -->
+    <string name="schedule_settings_title">Ustawienia harmonogramu</string>
+    <string name="schedule_settings_desc">Ustawienia harmonogramu</string>
+    <string name="schedule_name">Nazwa harmonogramu</string>
+    <string name="time_and_duration">Czas i czas trwania</string>
+    <string name="start_time_btn">Start: %s</string>
+    <string name="end_time_btn">Koniec: %s</string>
+    <string name="days_btn">Dni: %s</string>
+    <string name="interval_btn">Interwał: %ds</string>
+    <string name="start_point_title">Punkt początkowy</string>
+    <string name="end_point_title">Punkt końcowy</string>
+    <string name="not_set">Nie ustawiono</string>
+    <string name="clear_start">Wyczyść start</string>
+    <string name="clear_end">Wyczyść koniec</string>
+    <string name="delete_schedule">Usuń harmonogram</string>
+
+    <!-- Days Picker Dialog -->
+    <string name="select_days_of_week">Wybierz dni tygodnia</string>
+    <string name="days_mo_su">Pn-Nd</string>
+    <string name="days_mo_fri">Pn-Pt</string>
+    <string name="days_su_sa">Nd-So</string>
+    <string name="day_monday">Poniedziałek</string>
+    <string name="day_tuesday">Wtorek</string>
+    <string name="day_wednesday">Środa</string>
+    <string name="day_thursday">Czwartek</string>
+    <string name="day_friday">Piątek</string>
+    <string name="day_saturday">Sobota</string>
+    <string name="day_sunday">Niedziela</string>
+    <string name="day_mon_short">Pn</string>
+    <string name="day_tue_short">Wt</string>
+    <string name="day_wed_short">Śr</string>
+    <string name="day_thu_short">Czw</string>
+    <string name="day_fri_short">Pt</string>
+    <string name="day_sat_short">Sob</string>
+    <string name="day_sun_short">Nd</string>
+
+    <!-- Interval Dialog -->
+    <string name="check_interval">Interwał sprawdzania</string>
+    <string name="check_interval_prompt">Wprowadź jak często pozycja GPS ma być sprawdzana dla tego harmonogramu (w sekundach):</string>
+    <string name="seconds">Sekundy</string>
+    <string name="error_positive_number">Wprowadź poprawną liczbę dodatnią</string>
+
+    <!-- Radius Dialog -->
+    <string name="start_radius_title">Promień początkowy</string>
+    <string name="end_radius_title">Promień końcowy</string>
+    <string name="radius_prompt">Wprowadź promień %1$s w metrach (0 aby wyłączyć):</string>
+    <string name="radius_departure">odjazdu</string>
+    <string name="radius_arrival">przyjazdu</string>
+    <string name="radius_meters_label">Promień (metry)</string>
+    <string name="error_valid_radius">Wprowadź poprawną liczbę (0 lub większą)</string>
+
+    <!-- Map &amp; Controls -->
+    <string name="zoom_in">Przybliż</string>
+    <string name="zoom_out">Oddal</string>
+    <string name="show_current_gps_location">Pokaż bieżącą pozycję GPS</string>
+    <string name="location_permission_required">Uprawnienie do lokalizacji jest wymagane, aby pokazać bieżącą pozycję</string>
+    <string name="loaded_track">Wczytano: %s</string>
+    <string name="active_track">Aktywny ślad</string>
+    <string name="show_current">Pokaż bieżący</string>
+    <string name="distance_label">Dystans: %s</string>
+    <string name="total_time_label">Całkowity czas: %s</string>
+    <string name="start_time_label">Start: %s</string>
+    <string name="end_time_label">Koniec: %s</string>
+    <string name="centered_on_current_gps">Wycentrowano na bieżącej pozycji GPS</string>
+    <string name="centered_on_last_known_gps">Wycentrowano na ostatniej znanej pozycji GPS</string>
+    <string name="unable_to_get_gps">Nie można pobrać bieżącej pozycji GPS. Upewnij się, że GPS jest włączony.</string>
+    <string name="failed_to_get_location">Nie udało się pobrać lokalizacji: %s</string>
+    <string name="error_fetching_location">Błąd podczas pobierania lokalizacji: %s</string>
+    <string name="start_marker_title">Start</string>
+    <string name="latest_position_marker_title">Ostatnia pozycja</string>
+    <string name="schedule_start_marker_title">%1$s - Punkt początkowy (%2$s)</string>
+    <string name="schedule_end_marker_title">%1$s - Punkt końcowy (%2$s)</string>
+
+    <!-- Saved Tracks Tab -->
+    <string name="no_saved_tracks">Brak zapisanych śladów.</string>
+    <string name="duration_distance_format">Czas trwania: %1$s | Dystans: %2$s</string>
+    <string name="file_size_format">Rozmiar: %.2f KB</string>
+    <string name="export_track_file">Eksportuj plik śladu</string>
+    <string name="delete_track_file">Usuń plik śladu</string>
+    <string name="delete_track_title">Usunąć ślad?</string>
+    <string name="delete_active_track_warning">To jest ślad obecnie nagrywany (jeśli jest aktywny). Usunięcie go zatrzyma rejestrowanie dla bieżącego harmonogramu, dopóki nie zostanie zapisany nowy punkt. Czy na pewno?</string>
+    <string name="delete_track_confirm">Czy na pewno chcesz trwale usunąć ten plik śladu?</string>
+    <string name="track_saved_successfully">Ślad został pomyślnie zapisany</string>
+    <string name="failed_to_save_track">Nie udało się zapisać śladu: %s</string>
+
+    <!-- Points List Tab -->
+    <string name="no_gps_points">Brak zarejestrowanych punktów GPS na dzisiaj.</string>
+    <string name="ignored_label">zignorowany</string>
+    <string name="time_label">Czas: %s</string>
+    <string name="lat_lon_label">Szer: %1$s, Dł: %2$s</string>
+    <string name="elevation_label">Wysokość: %s m</string>
+    <string name="scroll_to_top">Przewiń do góry</string>
+    <string name="scroll_to_bottom">Przewiń do dołu</string>
+
+    <!-- Location Service &amp; Notifications -->
+    <string name="notification_channel_name">Śledzenie lokalizacji</string>
+    <string name="notification_title_paused">TraceIt - Wstrzymano (%s)</string>
+    <string name="notification_text_paused">Śledzenie wstrzymane. Oczekiwanie na ruch.</string>
+    <string name="notification_title_active">TraceIt - Aktywne (%s)</string>
+    <string name="notification_text_active">Śledzenie aktywne.</string>
+    <string name="notification_title_completed">TraceIt - Zakończono (%s)</string>
+    <string name="notification_text_completed_arrived">Osiągnięto cel. Śledzenie zakończone dla harmonogramu.</string>
+    <string name="notification_title_waiting">TraceIt - Oczekiwanie (%s)</string>
+    <string name="notification_text_inside_start">Wewnątrz promienia początkowego (%1$dm / %2$dm)&#8230;</string>
+    <string name="notification_text_departed_start">Opuszczono punkt początkowy. Śledzenie aktywne i zapisywanie GPX.</string>
+    <string name="notification_text_storing_gpx">Śledzenie aktywne i zapisywanie GPX.</string>
+    <string name="notification_text_completed_trip">Osiągnięto cel (%1$dm &lt;= %2$dm). Trasa zakończona.</string>
+    <string name="notification_text_init_gps">Inicjalizacja śledzenia GPS&#8230;</string>
+
+    <!-- Duration / Units formatting -->
+    <string name="duration_hours_minutes">%1$dg %2$02dm</string>
+    <string name="duration_minutes_seconds">%1$dm %2$02ds</string>
+    <string name="duration_seconds">%ds</string>
+    <string name="distance_km">%.2f km</string>
+    <string name="distance_m">%.0f m</string>
+</resources>

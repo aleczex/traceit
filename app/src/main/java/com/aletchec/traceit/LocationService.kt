@@ -152,8 +152,12 @@ class LocationService : Service() {
         if (currentState != State.TRACKING) return
         currentState = State.PAUSED
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
-        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "Tracking"
-        updateNotification("TraceIt - Paused ($scheduleName)", "Tracking paused. Waiting for movement.")
+        val scheduleName = activeRange?.name?.ifBlank { getString(com.aletchec.traceit.R.string.schedule_default_name) }
+            ?: getString(com.aletchec.traceit.R.string.schedule_default_name)
+        updateNotification(
+            getString(com.aletchec.traceit.R.string.notification_title_paused, scheduleName),
+            getString(com.aletchec.traceit.R.string.notification_text_paused)
+        )
         stopLocationUpdates()
         startMotionSensor()
         releaseWakeLock()
@@ -165,8 +169,12 @@ class LocationService : Service() {
         currentState = State.TRACKING
         acquireWakeLock()
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
-        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "Tracking"
-        updateNotification("TraceIt - Active ($scheduleName)", "Tracking active.")
+        val scheduleName = activeRange?.name?.ifBlank { getString(com.aletchec.traceit.R.string.schedule_default_name) }
+            ?: getString(com.aletchec.traceit.R.string.schedule_default_name)
+        updateNotification(
+            getString(com.aletchec.traceit.R.string.notification_title_active, scheduleName),
+            getString(com.aletchec.traceit.R.string.notification_text_active)
+        )
         startLocationUpdates()
         startActivityTransitionUpdates()
         stopMotionSensor()
@@ -188,7 +196,10 @@ class LocationService : Service() {
             }
 
             if (hasArrivedAtEndRadius) {
-                updateNotification("TraceIt - Completed (${activeRange.name})", "Arrived at destination. Tracking finished for schedule.")
+                updateNotification(
+                    getString(com.aletchec.traceit.R.string.notification_title_completed, activeRange.name),
+                    getString(com.aletchec.traceit.R.string.notification_text_completed_arrived)
+                )
                 return
             }
 
@@ -203,7 +214,10 @@ class LocationService : Service() {
 
                 if (distanceToStart <= startRadius) {
                     lastPointInsideStartRadius = location
-                    updateNotification("TraceIt - Waiting (${activeRange.name})", "Inside start radius (${distanceToStart.toInt()}m / ${startRadius}m)...")
+                    updateNotification(
+                        getString(com.aletchec.traceit.R.string.notification_title_waiting, activeRange.name),
+                        getString(com.aletchec.traceit.R.string.notification_text_inside_start, distanceToStart.toInt(), startRadius)
+                    )
                     return
                 } else {
                     hasDepartedStartRadius = true
@@ -212,14 +226,20 @@ class LocationService : Service() {
                     if (firstPoint.latitude != location.latitude || firstPoint.longitude != location.longitude || firstPoint.time != location.time) {
                         gpxManager.appendLocation(file, location)
                     }
-                    updateNotification("TraceIt - Active (${activeRange.name})", "Departed start point. Tracking active & storing GPX.")
+                    updateNotification(
+                        getString(com.aletchec.traceit.R.string.notification_title_active, activeRange.name),
+                        getString(com.aletchec.traceit.R.string.notification_text_departed_start)
+                    )
                     lastLocation = location
                     resetStillnessChecker()
                 }
             } else if (!hasDepartedStartRadius) {
                 hasDepartedStartRadius = true
                 gpxManager.appendLocation(file, location)
-                updateNotification("TraceIt - Active (${activeRange.name})", "Tracking active & storing GPX.")
+                updateNotification(
+                    getString(com.aletchec.traceit.R.string.notification_title_active, activeRange.name),
+                    getString(com.aletchec.traceit.R.string.notification_text_storing_gpx)
+                )
                 lastLocation = location
                 resetStillnessChecker()
             } else {
@@ -240,7 +260,10 @@ class LocationService : Service() {
 
                 if (distanceToEnd <= endRadius) {
                     hasArrivedAtEndRadius = true
-                    updateNotification("TraceIt - Completed (${activeRange.name})", "Arrived at destination (${distanceToEnd.toInt()}m <= ${endRadius}m). Trip complete.")
+                    updateNotification(
+                        getString(com.aletchec.traceit.R.string.notification_title_completed, activeRange.name),
+                        getString(com.aletchec.traceit.R.string.notification_text_completed_trip, distanceToEnd.toInt(), endRadius)
+                    )
                 }
             }
         } else {
@@ -313,7 +336,7 @@ class LocationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Location Tracking",
+                getString(com.aletchec.traceit.R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -321,8 +344,12 @@ class LocationService : Service() {
         }
 
         val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(this))
-        val scheduleName = activeRange?.name?.ifBlank { "Schedule" } ?: "TraceIt"
-        val notification = createNotification("TraceIt - Active ($scheduleName)", "Initializing GPS tracking...")
+        val scheduleName = activeRange?.name?.ifBlank { getString(com.aletchec.traceit.R.string.app_name) }
+            ?: getString(com.aletchec.traceit.R.string.app_name)
+        val notification = createNotification(
+            getString(com.aletchec.traceit.R.string.notification_title_active, scheduleName),
+            getString(com.aletchec.traceit.R.string.notification_text_init_gps)
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)

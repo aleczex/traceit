@@ -1,3 +1,165 @@
 <resources>
     <string name="app_name">TraceIt</string>
+
+    <!-- General / Actions -->
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="ok">OK</string>
+    <string name="load">Load</string>
+    <string name="delete">Delete</string>
+    <string name="refresh">Refresh</string>
+    <string name="pick">Pick</string>
+    <string name="radius">Radius</string>
+    <string name="save">Save</string>
+
+    <!-- Tracking Status -->
+    <string name="tracking_active">● TRACKING ACTIVE</string>
+    <string name="outside_schedule">○ OUTSIDE SCHEDULE</string>
+    <string name="active_tag">ACTIVE</string>
+
+    <!-- Tabs -->
+    <string name="tab_schedules">Schedules</string>
+    <string name="tab_points">Points</string>
+    <string name="tab_saved">Saved</string>
+
+    <!-- Schedules Tab -->
+    <string name="tracking_schedule">Tracking Schedule</string>
+    <string name="add_schedule">Add Schedule</string>
+    <string name="schedule_default_name">Schedule</string>
+    <string name="no_active_schedule">No active schedule</string>
+    <string name="viewing_track">Viewing: %s</string>
+    <string name="active_schedule_format">Active: %1$02d:%2$02d-%3$02d:%4$02d</string>
+    <string name="show_current_active_track">Show Current Active Track</string>
+    <string name="tap_map_to_set_point">Tap map to set %1$s point for Schedule #%2$d</string>
+    <string name="point_start_upper">START</string>
+    <string name="point_end_upper">END</string>
+    <string name="start_point_cannot_be_within_end">Start point cannot be within end point range</string>
+    <string name="start_point_set">Start point set for schedule!</string>
+    <string name="end_point_cannot_be_within_start">End point cannot be within start point range</string>
+    <string name="end_point_set">End point set for schedule!</string>
+
+    <!-- Schedule Item Details -->
+    <string name="interval_seconds_format">%ds interval</string>
+    <string name="start_radius_format">Start (%dm)</string>
+    <string name="start_not_set">Start: -</string>
+    <string name="end_radius_format">End (%dm)</string>
+    <string name="end_not_set">End: -</string>
+    <string name="start_point_desc">Start Point</string>
+    <string name="end_point_desc">End Point</string>
+
+    <!-- Settings Dialog -->
+    <string name="schedule_settings_title">Schedule Settings</string>
+    <string name="schedule_settings_desc">Schedule Settings</string>
+    <string name="schedule_name">Schedule Name</string>
+    <string name="time_and_duration">Time &amp; Duration</string>
+    <string name="start_time_btn">Start: %s</string>
+    <string name="end_time_btn">End: %s</string>
+    <string name="days_btn">Days: %s</string>
+    <string name="interval_btn">Interval: %ds</string>
+    <string name="start_point_title">Start Point</string>
+    <string name="end_point_title">End Point</string>
+    <string name="not_set">Not set</string>
+    <string name="clear_start">Clear Start</string>
+    <string name="clear_end">Clear End</string>
+    <string name="delete_schedule">Delete Schedule</string>
+
+    <!-- Days Picker Dialog -->
+    <string name="select_days_of_week">Select Days of Week</string>
+    <string name="days_mo_su">Mo-Su</string>
+    <string name="days_mo_fri">Mo-Fri</string>
+    <string name="days_su_sa">Su-Sa</string>
+    <string name="day_monday">Monday</string>
+    <string name="day_tuesday">Tuesday</string>
+    <string name="day_wednesday">Wednesday</string>
+    <string name="day_thursday">Thursday</string>
+    <string name="day_friday">Friday</string>
+    <string name="day_saturday">Saturday</string>
+    <string name="day_sunday">Sunday</string>
+    <string name="day_mon_short">Mon</string>
+    <string name="day_tue_short">Tue</string>
+    <string name="day_wed_short">Wed</string>
+    <string name="day_thu_short">Thu</string>
+    <string name="day_fri_short">Fri</string>
+    <string name="day_sat_short">Sat</string>
+    <string name="day_sun_short">Sun</string>
+
+    <!-- Interval Dialog -->
+    <string name="check_interval">Check Interval</string>
+    <string name="check_interval_prompt">Enter how often GPS position should be checked for this schedule (in seconds):</string>
+    <string name="seconds">Seconds</string>
+    <string name="error_positive_number">Please enter a valid positive number</string>
+
+    <!-- Radius Dialog -->
+    <string name="start_radius_title">Start Radius</string>
+    <string name="end_radius_title">End Radius</string>
+    <string name="radius_prompt">Enter %1$s radius in meters (0 to disable):</string>
+    <string name="radius_departure">departure</string>
+    <string name="radius_arrival">arrival</string>
+    <string name="radius_meters_label">Radius (meters)</string>
+    <string name="error_valid_radius">Please enter a valid number (0 or greater)</string>
+
+    <!-- Map &amp; Controls -->
+    <string name="zoom_in">Zoom In</string>
+    <string name="zoom_out">Zoom Out</string>
+    <string name="show_current_gps_location">Show Current GPS Location</string>
+    <string name="location_permission_required">Location permission required to show current position</string>
+    <string name="loaded_track">Loaded: %s</string>
+    <string name="active_track">Active Track</string>
+    <string name="show_current">Show Current</string>
+    <string name="distance_label">Distance: %s</string>
+    <string name="total_time_label">Total Time: %s</string>
+    <string name="start_time_label">Start: %s</string>
+    <string name="end_time_label">End: %s</string>
+    <string name="centered_on_current_gps">Centered on current GPS position</string>
+    <string name="centered_on_last_known_gps">Centered on last known GPS position</string>
+    <string name="unable_to_get_gps">Unable to get current GPS position. Make sure GPS is enabled.</string>
+    <string name="failed_to_get_location">Failed to get location: %s</string>
+    <string name="error_fetching_location">Error fetching location: %s</string>
+    <string name="start_marker_title">Start</string>
+    <string name="latest_position_marker_title">Latest Position</string>
+    <string name="schedule_start_marker_title">%1$s - Start Point (%2$s)</string>
+    <string name="schedule_end_marker_title">%1$s - End Point (%2$s)</string>
+
+    <!-- Saved Tracks Tab -->
+    <string name="no_saved_tracks">No saved tracks found.</string>
+    <string name="duration_distance_format">Duration: %1$s | Distance: %2$s</string>
+    <string name="file_size_format">Size: %.2f KB</string>
+    <string name="export_track_file">Export track file</string>
+    <string name="delete_track_file">Delete track file</string>
+    <string name="delete_track_title">Delete Track?</string>
+    <string name="delete_active_track_warning">This is the track currently being recorded (if active). Deleting it will stop logging for the current schedule until a new point is recorded. Are you sure?</string>
+    <string name="delete_track_confirm">Are you sure you want to permanently delete this track file?</string>
+    <string name="track_saved_successfully">Track saved successfully</string>
+    <string name="failed_to_save_track">Failed to save track: %s</string>
+
+    <!-- Points List Tab -->
+    <string name="no_gps_points">No GPS points recorded yet today.</string>
+    <string name="ignored_label">ignored</string>
+    <string name="time_label">Time: %s</string>
+    <string name="lat_lon_label">Lat: %1$s, Lon: %2$s</string>
+    <string name="elevation_label">Elevation: %s m</string>
+    <string name="scroll_to_top">Scroll to Top</string>
+    <string name="scroll_to_bottom">Scroll to Bottom</string>
+
+    <!-- Location Service &amp; Notifications -->
+    <string name="notification_channel_name">Location Tracking</string>
+    <string name="notification_title_paused">TraceIt - Paused (%s)</string>
+    <string name="notification_text_paused">Tracking paused. Waiting for movement.</string>
+    <string name="notification_title_active">TraceIt - Active (%s)</string>
+    <string name="notification_text_active">Tracking active.</string>
+    <string name="notification_title_completed">TraceIt - Completed (%s)</string>
+    <string name="notification_text_completed_arrived">Arrived at destination. Tracking finished for schedule.</string>
+    <string name="notification_title_waiting">TraceIt - Waiting (%s)</string>
+    <string name="notification_text_inside_start">Inside start radius (%1$dm / %2$dm)&#8230;</string>
+    <string name="notification_text_departed_start">Departed start point. Tracking active &amp; storing GPX.</string>
+    <string name="notification_text_storing_gpx">Tracking active &amp; storing GPX.</string>
+    <string name="notification_text_completed_trip">Arrived at destination (%1$dm &lt;= %2$dm). Trip complete.</string>
+    <string name="notification_text_init_gps">Initializing GPS tracking&#8230;</string>
+
+    <!-- Duration / Units formatting -->
+    <string name="duration_hours_minutes">%1$dh %2$02dm</string>
+    <string name="duration_minutes_seconds">%1$dm %2$02ds</string>
+    <string name="duration_seconds">%ds</string>
+    <string name="distance_km">%.2f km</string>
+    <string name="distance_m">%.0f m</string>
 </resources>

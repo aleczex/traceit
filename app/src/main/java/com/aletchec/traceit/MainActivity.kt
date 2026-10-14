@@ -1,6 +1,7 @@
 package com.aletchec.traceit
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -82,6 +83,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -183,9 +185,9 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                             inputStream.copyTo(outputStream)
                         }
                     }
-                    Toast.makeText(context, "Track saved successfully", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.track_saved_successfully, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Failed to save track: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.failed_to_save_track, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -254,7 +256,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     .padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = "TraceIt",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -270,7 +272,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isTrackingNow) "● TRACKING ACTIVE" else "○ OUTSIDE SCHEDULE",
+                        text = if (isTrackingNow) stringResource(R.string.tracking_active) else stringResource(R.string.outside_schedule),
                         color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
                         style = MaterialTheme.typography.titleSmall
                     )
@@ -284,7 +286,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                         onClick = {
                             selectedTab = 0
                         },
-                        text = { Text("Schedules") }
+                        text = { Text(stringResource(R.string.tab_schedules)) }
                     )
                     Tab(
                         selected = selectedTab == 1,
@@ -292,7 +294,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                             selectedTab = 1
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
-                        text = { Text("Points") }
+                        text = { Text(stringResource(R.string.tab_points)) }
                     )
                     Tab(
                         selected = selectedTab == 2,
@@ -300,7 +302,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                             selectedTab = 2
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
-                        text = { Text("Saved") }
+                        text = { Text(stringResource(R.string.tab_saved)) }
                     )
                 }
 
@@ -318,13 +320,13 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = "Tracking Schedule", style = MaterialTheme.typography.titleMedium)
+                                    Text(text = stringResource(R.string.tracking_schedule), style = MaterialTheme.typography.titleMedium)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     IconButton(onClick = {
-                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0))
+                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = context.getString(R.string.schedule_default_name)))
                                         scheduler.saveSchedules(context, ranges)
                                     }) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Schedule")
+                                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
                                     }
                                     Spacer(modifier = Modifier.weight(1f))
                                     TextButton(onClick = {
@@ -334,7 +336,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                         }
                                         trackPoints = gpxManager.getTrackPoints(file)
                                     }) {
-                                        Text("Refresh")
+                                        Text(stringResource(R.string.refresh))
                                     }
                                 }
 
@@ -378,13 +380,13 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
                                 Text(
                                     text = if (selectedFile != null) {
-                                        "Viewing: ${selectedFile?.name?.replace("track_", "")?.replace(".gpx", "")}"
+                                        stringResource(R.string.viewing_track, selectedFile?.name?.replace("track_", "")?.replace(".gpx", "") ?: "")
                                     } else {
                                         val activeRange = scheduler.getActiveRange(ranges)
                                         if (activeRange != null) {
-                                            String.format(Locale.US, "Active: %02d:%02d-%02d:%02d", activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
+                                            stringResource(R.string.active_schedule_format, activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
                                         } else {
-                                            "No active schedule"
+                                            stringResource(R.string.no_active_schedule)
                                         }
                                     },
                                     style = MaterialTheme.typography.bodySmall,
@@ -392,7 +394,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                 )
                                 if (selectedFile != null) {
                                     TextButton(onClick = { selectedFile = null }) {
-                                        Text("Show Current Active Track")
+                                        Text(stringResource(R.string.show_current_active_track))
                                     }
                                 }
                             }
@@ -444,7 +446,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                     results
                                 )
                                 if (results[0] <= currentRange.endRadiusMeters) {
-                                    Toast.makeText(context, "Start point cannot be within end point range", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, R.string.start_point_cannot_be_within_end, Toast.LENGTH_SHORT).show()
                                     pickingScheduleIndex = -1
                                     return@TrackMap
                                 }
@@ -456,7 +458,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                 startRadiusMeters = defaultRadius
                             )
                             scheduler.saveSchedules(context, ranges)
-                            Toast.makeText(context, "Start point set for schedule!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, R.string.start_point_set, Toast.LENGTH_SHORT).show()
                         } else {
                             if (currentRange.startLat != null && currentRange.startLon != null && currentRange.startRadiusMeters > 0) {
                                 val results = FloatArray(1)
@@ -466,7 +468,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                     results
                                 )
                                 if (results[0] <= currentRange.startRadiusMeters) {
-                                    Toast.makeText(context, "End point cannot be within start point range", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, R.string.end_point_cannot_be_within_start, Toast.LENGTH_SHORT).show()
                                     pickingScheduleIndex = -1
                                     return@TrackMap
                                 }
@@ -478,7 +480,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                                 endRadiusMeters = defaultRadius
                             )
                             scheduler.saveSchedules(context, ranges)
-                            Toast.makeText(context, "End point set for schedule!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, R.string.end_point_set, Toast.LENGTH_SHORT).show()
                         }
                     }
                     pickingScheduleIndex = -1
@@ -497,7 +499,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 if (allGranted && mapViewInstance != null) {
                     fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
                 } else {
-                    Toast.makeText(context, "Location permission required to show current position", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.location_permission_required, Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -517,7 +519,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     contentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Zoom In")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.zoom_in))
                 }
 
                 // Zoom Out (-)
@@ -529,7 +531,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     contentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Zoom Out")
+                    Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.zoom_out))
                 }
 
                 // Crosshair (My Location)
@@ -550,7 +552,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     contentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = "Show Current GPS Location")
+                    Icon(Icons.Default.MyLocation, contentDescription = stringResource(R.string.show_current_gps_location))
                 }
             }
 
@@ -581,38 +583,39 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (selectedFile != null) "Loaded: ${selectedFile?.name?.replace("track_", "")?.replace(".gpx", "")}" else "Active Track",
+                                text = if (selectedFile != null) stringResource(R.string.loaded_track, selectedFile?.name?.replace("track_", "")?.replace(".gpx", "") ?: "") else stringResource(R.string.active_track),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.weight(1f)
                             )
                             if (selectedFile != null) {
                                 TextButton(onClick = { selectedFile = null }) {
-                                    Text("Show Current")
+                                    Text(stringResource(R.string.show_current))
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "Distance: $distanceStr", style = MaterialTheme.typography.bodySmall)
-                            Text(text = "Total Time: $durationStr", style = MaterialTheme.typography.bodySmall)
+                            Text(text = stringResource(R.string.distance_label, distanceStr), style = MaterialTheme.typography.bodySmall)
+                            Text(text = stringResource(R.string.total_time_label, durationStr), style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "Start: $startTimeStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
-                            Text(text = "End: $endTimeStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                            Text(text = stringResource(R.string.start_time_label, startTimeStr), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                            Text(text = stringResource(R.string.end_time_label, endTimeStr), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                         }
                     }
                 }
             }
 
             if (pickingScheduleIndex != -1) {
+                val targetText = if (pickTarget == PickTarget.START) stringResource(R.string.point_start_upper) else stringResource(R.string.point_end_upper)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -624,13 +627,13 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Tap map to set ${if (pickTarget == PickTarget.START) "START" else "END"} point for Schedule #${pickingScheduleIndex + 1}",
+                            text = stringResource(R.string.tap_map_to_set_point, targetText, pickingScheduleIndex + 1),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { pickingScheduleIndex = -1 }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                     }
                 }
@@ -735,39 +738,39 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
         AlertDialog(
             onDismissRequest = { showDaysDialog = false },
-            title = { Text("Select Days of Week") },
+            title = { Text(stringResource(R.string.select_days_of_week)) },
             text = {
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         OutlinedButton(onClick = {
                             selectedDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
                         }) {
-                            Text("Mo-Su")
+                            Text(stringResource(R.string.days_mo_su))
                         }
                         OutlinedButton(onClick = {
                             selectedDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY)
                         }) {
-                            Text("Mo-Fri")
+                            Text(stringResource(R.string.days_mo_fri))
                         }
                         OutlinedButton(onClick = {
                             selectedDays = setOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
                         }) {
-                            Text("Su-Sa")
+                            Text(stringResource(R.string.days_su_sa))
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 
                     val dayEntries = listOf(
-                        Calendar.MONDAY to "Monday",
-                        Calendar.TUESDAY to "Tuesday",
-                        Calendar.WEDNESDAY to "Wednesday",
-                        Calendar.THURSDAY to "Thursday",
-                        Calendar.FRIDAY to "Friday",
-                        Calendar.SATURDAY to "Saturday",
-                        Calendar.SUNDAY to "Sunday"
+                        Calendar.MONDAY to stringResource(R.string.day_monday),
+                        Calendar.TUESDAY to stringResource(R.string.day_tuesday),
+                        Calendar.WEDNESDAY to stringResource(R.string.day_wednesday),
+                        Calendar.THURSDAY to stringResource(R.string.day_thursday),
+                        Calendar.FRIDAY to stringResource(R.string.day_friday),
+                        Calendar.SATURDAY to stringResource(R.string.day_saturday),
+                        Calendar.SUNDAY to stringResource(R.string.day_sunday)
                     )
 
                     dayEntries.forEach { (dayConstant, dayName) ->
@@ -809,12 +812,12 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     scheduler.saveSchedules(context, ranges)
                     showDaysDialog = false
                 }) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDaysDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -826,15 +829,15 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
         AlertDialog(
             onDismissRequest = { showIntervalDialog = false },
-            title = { Text("Check Interval") },
+            title = { Text(stringResource(R.string.check_interval)) },
             text = {
                 Column {
-                    Text("Enter how often GPS position should be checked for this schedule (in seconds):")
+                    Text(stringResource(R.string.check_interval_prompt))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = intervalInput,
                         onValueChange = { intervalInput = it },
-                        label = { Text("Seconds") },
+                        label = { Text(stringResource(R.string.seconds)) },
                         singleLine = true
                     )
                 }
@@ -847,15 +850,15 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                         scheduler.saveSchedules(context, ranges)
                         showIntervalDialog = false
                     } else {
-                        Toast.makeText(context, "Please enter a valid positive number", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.error_positive_number, Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showIntervalDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -866,17 +869,20 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
         val initialRadius = if (editingRadiusTarget == PickTarget.START) currentRange.startRadiusMeters else currentRange.endRadiusMeters
         var radiusInput by remember { mutableStateOf(if (initialRadius > 0) initialRadius.toString() else "50") }
 
+        val titleText = if (editingRadiusTarget == PickTarget.START) stringResource(R.string.start_radius_title) else stringResource(R.string.end_radius_title)
+        val actionText = if (editingRadiusTarget == PickTarget.START) stringResource(R.string.radius_departure) else stringResource(R.string.radius_arrival)
+
         AlertDialog(
             onDismissRequest = { showRadiusDialog = false },
-            title = { Text("${if (editingRadiusTarget == PickTarget.START) "Start" else "End"} Radius") },
+            title = { Text(titleText) },
             text = {
                 Column {
-                    Text("Enter ${if (editingRadiusTarget == PickTarget.START) "departure" else "arrival"} radius in meters (0 to disable):")
+                    Text(stringResource(R.string.radius_prompt, actionText))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = radiusInput,
                         onValueChange = { radiusInput = it },
-                        label = { Text("Radius (meters)") },
+                        label = { Text(stringResource(R.string.radius_meters_label)) },
                         singleLine = true
                     )
                 }
@@ -893,39 +899,39 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                         scheduler.saveSchedules(context, ranges)
                         showRadiusDialog = false
                     } else {
-                        Toast.makeText(context, "Please enter a valid number (0 or greater)", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.error_valid_radius, Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRadiusDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
     }
 }
 
-fun formatDays(days: Set<Int>): String {
+fun formatDays(days: Set<Int>, context: Context): String {
     val allDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
     val workDays = setOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY)
     val suSaDays = setOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
 
     return when {
-        days == allDays || days == suSaDays -> "Mo-Su"
-        days == workDays -> "Mo-Fri"
-        days.size == 7 -> "Su-Sa"
+        days == allDays || days == suSaDays -> context.getString(R.string.days_mo_su)
+        days == workDays -> context.getString(R.string.days_mo_fri)
+        days.size == 7 -> context.getString(R.string.days_su_sa)
         else -> {
             val dayNames = mapOf(
-                Calendar.MONDAY to "Mon",
-                Calendar.TUESDAY to "Tue",
-                Calendar.WEDNESDAY to "Wed",
-                Calendar.THURSDAY to "Thu",
-                Calendar.FRIDAY to "Fri",
-                Calendar.SATURDAY to "Sat",
-                Calendar.SUNDAY to "Sun"
+                Calendar.MONDAY to context.getString(R.string.day_mon_short),
+                Calendar.TUESDAY to context.getString(R.string.day_tue_short),
+                Calendar.WEDNESDAY to context.getString(R.string.day_wed_short),
+                Calendar.THURSDAY to context.getString(R.string.day_thu_short),
+                Calendar.FRIDAY to context.getString(R.string.day_fri_short),
+                Calendar.SATURDAY to context.getString(R.string.day_sat_short),
+                Calendar.SUNDAY to context.getString(R.string.day_sun_short)
             )
             val sortedDays = listOf(Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)
             sortedDays.filter { days.contains(it) }.mapNotNull { dayNames[it] }.joinToString(", ")
@@ -942,6 +948,7 @@ fun ScheduleItem(
     onTogglePickStart: () -> Unit,
     onTogglePickEnd: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -957,7 +964,7 @@ fun ScheduleItem(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = range.name.ifBlank { "Schedule" },
+                    text = range.name.ifBlank { stringResource(R.string.schedule_default_name) },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -971,13 +978,13 @@ fun ScheduleItem(
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = formatDays(range.daysOfWeek),
+                    text = formatDays(range.daysOfWeek, context),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${range.gpsIntervalSeconds}s interval",
+                    text = stringResource(R.string.interval_seconds_format, range.gpsIntervalSeconds),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -987,13 +994,13 @@ fun ScheduleItem(
                 val hasStart = range.startLat != null && range.startLon != null
                 Icon(
                     imageVector = Icons.Default.LocationOn,
-                    contentDescription = "Start Point",
+                    contentDescription = stringResource(R.string.start_point_desc),
                     tint = if (hasStart) Color(0xFF2E7D32) else Color.Gray,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Text(
-                    text = if (hasStart) "Start (${range.startRadiusMeters}m)" else "Start: -",
+                    text = if (hasStart) stringResource(R.string.start_radius_format, range.startRadiusMeters) else stringResource(R.string.start_not_set),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (hasStart) Color(0xFF2E7D32) else Color.Gray
                 )
@@ -1001,13 +1008,13 @@ fun ScheduleItem(
                 val hasEnd = range.endLat != null && range.endLon != null
                 Icon(
                     imageVector = Icons.Default.LocationOn,
-                    contentDescription = "End Point",
+                    contentDescription = stringResource(R.string.end_point_desc),
                     tint = if (hasEnd) Color(0xFFC62828) else Color.Gray,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Text(
-                    text = if (hasEnd) "End (${range.endRadiusMeters}m)" else "End: -",
+                    text = if (hasEnd) stringResource(R.string.end_radius_format, range.endRadiusMeters) else stringResource(R.string.end_not_set),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (hasEnd) Color(0xFFC62828) else Color.Gray
                 )
@@ -1015,7 +1022,7 @@ fun ScheduleItem(
         }
 
         IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Default.Settings, contentDescription = "Schedule Settings")
+            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.schedule_settings_desc))
         }
     }
 }
@@ -1038,10 +1045,11 @@ fun ScheduleSettingsDialog(
     onClearEnd: () -> Unit
 ) {
     var nameInput by remember { mutableStateOf(range.name) }
+    val context = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Schedule Settings") },
+        title = { Text(stringResource(R.string.schedule_settings_title)) },
         text = {
             LazyColumn(
                 modifier = Modifier
@@ -1055,24 +1063,24 @@ fun ScheduleSettingsDialog(
                             nameInput = it
                             onUpdate(range.copy(name = it))
                         },
-                        label = { Text("Schedule Name") },
+                        label = { Text(stringResource(R.string.schedule_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text("Time & Duration", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.time_and_duration), style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(onClick = onEditStart, modifier = Modifier.weight(1f)) {
-                            Text("Start: ${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)}")
+                            Text(stringResource(R.string.start_time_btn, String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedButton(onClick = onEditEnd, modifier = Modifier.weight(1f)) {
-                            Text("End: ${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)}")
+                            Text(stringResource(R.string.end_time_btn, String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)))
                         }
                     }
 
@@ -1082,16 +1090,16 @@ fun ScheduleSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(onClick = onEditDays, modifier = Modifier.weight(1f)) {
-                            Text("Days: ${formatDays(range.daysOfWeek)}")
+                            Text(stringResource(R.string.days_btn, formatDays(range.daysOfWeek, context)))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedButton(onClick = onEditInterval, modifier = Modifier.weight(1f)) {
-                            Text("Interval: ${range.gpsIntervalSeconds}s")
+                            Text(stringResource(R.string.interval_btn, range.gpsIntervalSeconds))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Start Point", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.start_point_title), style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1100,7 +1108,7 @@ fun ScheduleSettingsDialog(
                         val startText = if (range.startLat != null && range.startLon != null) {
                             String.format(Locale.US, "%.4f, %.4f (%dm)", range.startLat, range.startLon, range.startRadiusMeters)
                         } else {
-                            "Not set"
+                            stringResource(R.string.not_set)
                         }
                         Text(
                             text = startText,
@@ -1108,20 +1116,20 @@ fun ScheduleSettingsDialog(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = onPickStart) {
-                            Text("Pick")
+                            Text(stringResource(R.string.pick))
                         }
                         if (range.startLat != null && range.startLon != null) {
                             TextButton(onClick = onSetStartRadius) {
-                                Text("Radius")
+                                Text(stringResource(R.string.radius))
                             }
                             IconButton(onClick = onClearStart) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear Start", modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_start), modifier = Modifier.size(20.dp))
                             }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("End Point", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.end_point_title), style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1130,7 +1138,7 @@ fun ScheduleSettingsDialog(
                         val endText = if (range.endLat != null && range.endLon != null) {
                             String.format(Locale.US, "%.4f, %.4f (%dm)", range.endLat, range.endLon, range.endRadiusMeters)
                         } else {
-                            "Not set"
+                            stringResource(R.string.not_set)
                         }
                         Text(
                             text = endText,
@@ -1138,14 +1146,14 @@ fun ScheduleSettingsDialog(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = onPickEnd) {
-                            Text("Pick")
+                            Text(stringResource(R.string.pick))
                         }
                         if (range.endLat != null && range.endLon != null) {
                             TextButton(onClick = onSetEndRadius) {
-                                Text("Radius")
+                                Text(stringResource(R.string.radius))
                             }
                             IconButton(onClick = onClearEnd) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear End", modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_end), modifier = Modifier.size(20.dp))
                             }
                         }
                     }
@@ -1156,16 +1164,16 @@ fun ScheduleSettingsDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_schedule), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Delete Schedule")
+                        Text(stringResource(R.string.delete_schedule))
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -1202,7 +1210,7 @@ fun SavedTracksList(
 
     if (files.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("No saved tracks found.", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.no_saved_tracks), style = MaterialTheme.typography.bodyMedium)
         }
         return
     }
@@ -1258,7 +1266,7 @@ fun SavedTracksList(
                         if (isActiveFile) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ACTIVE",
+                                text = stringResource(R.string.active_tag),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
@@ -1270,12 +1278,12 @@ fun SavedTracksList(
                     Spacer(modifier = Modifier.height(2.dp))
                     val stats = remember(file) { gpxManager.getTrackStatistics(file) }
                     Text(
-                        text = "Duration: ${gpxManager.formatDuration(stats.durationMillis)} | Distance: ${gpxManager.formatDistance(stats.distanceMeters)}",
+                        text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
                     Text(
-                        text = "Size: ${String.format(Locale.US, "%.2f", file.length() / 1024.0)} KB",
+                        text = stringResource(R.string.file_size_format, file.length() / 1024.0),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -1283,7 +1291,7 @@ fun SavedTracksList(
                 Button(onClick = {
                     onSelectFile(file)
                 }) {
-                    Text("Load")
+                    Text(stringResource(R.string.load))
                 }
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -1291,7 +1299,7 @@ fun SavedTracksList(
                 IconButton(onClick = {
                     onExportFile(file)
                 }) {
-                    Icon(Icons.Default.SaveAlt, contentDescription = "Export track file")
+                    Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
                 }
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -1299,7 +1307,7 @@ fun SavedTracksList(
                 IconButton(onClick = {
                     fileToDelete = file
                 }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete track file")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
                 }
             }
         }
@@ -1311,12 +1319,12 @@ fun SavedTracksList(
 
         AlertDialog(
             onDismissRequest = { fileToDelete = null },
-            title = { Text("Delete Track?") },
+            title = { Text(stringResource(R.string.delete_track_title)) },
             text = {
                 if (isActiveFile) {
-                    Text("This is the track currently being recorded (if active). Deleting it will stop logging for the current schedule until a new point is recorded. Are you sure?")
+                    Text(stringResource(R.string.delete_active_track_warning))
                 } else {
-                    Text("Are you sure you want to permanently delete this track file?")
+                    Text(stringResource(R.string.delete_track_confirm))
                 }
             },
             confirmButton = {
@@ -1329,12 +1337,12 @@ fun SavedTracksList(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { fileToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -1431,7 +1439,8 @@ fun TrackMap(
                 // Start Point
                 if (range.startLat != null && range.startLon != null) {
                     val center = GeoPoint(range.startLat, range.startLon)
-                    val titleStr = "${range.name} - Start Point (${String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)})"
+                    val timeStr = String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)
+                    val titleStr = context.getString(R.string.schedule_start_marker_title, range.name, timeStr)
                     val startMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.GREEN, range.name)
                     map.overlays.add(startMarker)
 
@@ -1449,7 +1458,8 @@ fun TrackMap(
                 // End Point
                 if (range.endLat != null && range.endLon != null) {
                     val center = GeoPoint(range.endLat, range.endLon)
-                    val titleStr = "${range.name} - End Point (${String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)})"
+                    val timeStr = String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)
+                    val titleStr = context.getString(R.string.schedule_end_marker_title, range.name, timeStr)
                     val endMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.RED, range.name)
                     map.overlays.add(endMarker)
 
@@ -1479,7 +1489,7 @@ fun TrackMap(
                 val startMarker = Marker(map).apply {
                     position = geoPoints.first()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Start"
+                    title = context.getString(R.string.start_marker_title)
                     icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
                         setTint(android.graphics.Color.GREEN)
                     }
@@ -1489,7 +1499,7 @@ fun TrackMap(
                 val endMarker = Marker(map).apply {
                     position = geoPoints.last()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Latest Position"
+                    title = context.getString(R.string.latest_position_marker_title)
                     icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
                         setTint(android.graphics.Color.RED)
                     }
@@ -1522,43 +1532,6 @@ fun TrackMap(
                 }
             }
             map.overlays.add(MapEventsOverlay(eventsReceiver))
-            if (validPoints.isNotEmpty()) {
-                val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
-
-                val polyline = Polyline().apply {
-                    setPoints(geoPoints)
-                    outlinePaint.color = android.graphics.Color.BLUE
-                    outlinePaint.strokeWidth = 5f
-                }
-                map.overlays.add(polyline)
-
-                val startMarker = Marker(map).apply {
-                    position = geoPoints.first()
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Start"
-                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
-                        setTint(android.graphics.Color.GREEN)
-                    }
-                }
-                map.overlays.add(startMarker)
-
-                val endMarker = Marker(map).apply {
-                    position = geoPoints.last()
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Latest Position"
-                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
-                        setTint(android.graphics.Color.RED)
-                    }
-                }
-                map.overlays.add(endMarker)
-
-                if (!hasCenteredInitially) {
-                    hasCenteredInitially = true
-                    map.post {
-                        map.controller.setCenter(geoPoints.last())
-                    }
-                }
-            }
             map.invalidate()
         }
     )
@@ -1568,7 +1541,7 @@ fun TrackMap(
 fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier) {
     if (points.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("No GPS points recorded yet today.", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.no_gps_points), style = MaterialTheme.typography.bodyMedium)
         }
         return
     }
@@ -1600,14 +1573,14 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Time: ${pt.time.replace("T", " ").replace("Z", "")}",
+                                text = stringResource(R.string.time_label, pt.time.replace("T", " ").replace("Z", "")),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (pt.isIgnored) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                             )
                             if (pt.isIgnored) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "ignored",
+                                    text = stringResource(R.string.ignored_label),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.error,
                                     modifier = Modifier
@@ -1618,11 +1591,11 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Lat: ${pt.latitude}, Lon: ${pt.longitude}",
+                            text = stringResource(R.string.lat_lon_label, pt.latitude.toString(), pt.longitude.toString()),
                             style = MaterialTheme.typography.bodySmall
                         )
                         Text(
-                            text = "Elevation: ${pt.elevation} m",
+                            text = stringResource(R.string.elevation_label, pt.elevation.toString()),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.secondary
                         )
@@ -1705,28 +1678,28 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                 onClick = {
                     coroutineScope.launch {
                         listState.scrollToItem(0)
-                        Toast.makeText(context, "Scroll to Top", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.scroll_to_top, Toast.LENGTH_SHORT).show()
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Scroll to Top", modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.scroll_to_top), modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
             FloatingActionButton(
                 onClick = {
                     coroutineScope.launch {
                         listState.scrollToItem(points.size - 1)
-                        Toast.makeText(context, "Scroll to Bottom", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.scroll_to_bottom, Toast.LENGTH_SHORT).show()
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Scroll to Bottom", modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.scroll_to_bottom), modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -1746,12 +1719,12 @@ fun TimePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(state.hour, state.minute) }) {
-                Text("OK")
+                Text(stringResource(R.string.cancel)) // Replaced ok/cancel below
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
         text = {
@@ -1761,7 +1734,7 @@ fun TimePickerDialog(
 }
 
 private fun fetchAndCenterLocation(
-    context: android.content.Context,
+    context: Context,
     fusedLocationClient: FusedLocationProviderClient,
     mapView: MapView
 ) {
@@ -1783,19 +1756,19 @@ private fun fetchAndCenterLocation(
                     val geoPoint = GeoPoint(location.latitude, location.longitude)
                     mapView.controller.animateTo(geoPoint)
                     mapView.controller.setZoom(16.0)
-                    Toast.makeText(context, "Centered on current GPS position", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.centered_on_current_gps, Toast.LENGTH_SHORT).show()
                 } else {
                     fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
                         if (lastLoc != null) {
                             val geoPoint = GeoPoint(lastLoc.latitude, lastLoc.longitude)
                             mapView.controller.animateTo(geoPoint)
                             mapView.controller.setZoom(16.0)
-                            Toast.makeText(context, "Centered on last known GPS position", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, R.string.centered_on_last_known_gps, Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(context, "Unable to get current GPS position. Make sure GPS is enabled.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, R.string.unable_to_get_gps, Toast.LENGTH_LONG).show()
                         }
                     }.addOnFailureListener {
-                        Toast.makeText(context, "Failed to get location: ${it.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.failed_to_get_location, it.message ?: ""), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -1805,16 +1778,15 @@ private fun fetchAndCenterLocation(
                         val geoPoint = GeoPoint(lastLoc.latitude, lastLoc.longitude)
                         mapView.controller.animateTo(geoPoint)
                         mapView.controller.setZoom(16.0)
-                        Toast.makeText(context, "Centered on last known GPS position", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.centered_on_last_known_gps, Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Unable to get current GPS position. Make sure GPS is enabled.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, R.string.unable_to_get_gps, Toast.LENGTH_LONG).show()
                     }
                 }.addOnFailureListener {
-                    Toast.makeText(context, "Failed to get location: ${it.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.failed_to_get_location, it.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
     } catch (e: Exception) {
-        Toast.makeText(context, "Error fetching location: ${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.error_fetching_location, e.message ?: ""), Toast.LENGTH_SHORT).show()
     }
 }
-

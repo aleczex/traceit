@@ -128,17 +128,17 @@ class GpxManager(private val context: Context) {
         val minutes = (seconds % 3600) / 60
         val secs = seconds % 60
         return when {
-            hours > 0 -> String.format(Locale.US, "%dh %02dm", hours, minutes)
-            minutes > 0 -> String.format(Locale.US, "%dm %02ds", minutes, secs)
-            else -> String.format(Locale.US, "%ds", secs)
+            hours > 0 -> context.getString(R.string.duration_hours_minutes, hours, minutes)
+            minutes > 0 -> context.getString(R.string.duration_minutes_seconds, minutes, secs)
+            else -> context.getString(R.string.duration_seconds, secs)
         }
     }
 
     fun formatDistance(distanceMeters: Float): String {
         return if (distanceMeters >= 1000f) {
-            String.format(Locale.US, "%.2f km", distanceMeters / 1000f)
+            context.getString(R.string.distance_km, distanceMeters / 1000f)
         } else {
-            String.format(Locale.US, "%.0f m", distanceMeters)
+            context.getString(R.string.distance_m, distanceMeters)
         }
     }
 }
