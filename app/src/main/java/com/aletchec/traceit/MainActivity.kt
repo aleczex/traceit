@@ -1228,8 +1228,8 @@ fun SavedTracksList(
                     .padding(vertical = 4.dp)
                     .background(
                         when {
+                            isActiveFile -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
                             isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                            isActiveFile -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                             else -> MaterialTheme.colorScheme.surfaceVariant
                         },
                         RoundedCornerShape(8.dp)
@@ -1256,25 +1256,15 @@ fun SavedTracksList(
                         file.name
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = formattedName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isLoaded || isActiveFile) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        if (isActiveFile) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.active_tag),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
+                    Text(
+                        text = formattedName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = when {
+                            isActiveFile -> MaterialTheme.colorScheme.error
+                            isLoaded -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
-                    }
+                    )
                     Spacer(modifier = Modifier.height(2.dp))
                     val stats = remember(file) { gpxManager.getTrackStatistics(file) }
                     Text(
