@@ -126,12 +126,12 @@ class LocationService : Service() {
                 }
             }
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(activityReceiver,
-                IntentFilter("com.aletchec.traceit.ACTIVITY_TRANSITION"), RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(activityReceiver, IntentFilter("com.aletchec.traceit.ACTIVITY_TRANSITION"))
-        }
+        ContextCompat.registerReceiver(
+            this,
+            activityReceiver,
+            IntentFilter("com.aletchec.traceit.ACTIVITY_TRANSITION"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     private fun evaluateState() {
