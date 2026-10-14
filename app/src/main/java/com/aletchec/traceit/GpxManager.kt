@@ -50,7 +50,7 @@ class GpxManager(private val context: Context) {
         if (!file.exists()) {
             val header = """
                 <?xml version="1.0" encoding="UTF-8"?>
-                <gpx version="1.1" creator="Lokalizator" xmlns="http://www.topografix.com/GPX/1/1">
+                <gpx version="1.1" creator="TraceIt" xmlns="http://www.topografix.com/GPX/1/1">
                   <trk>
                     <name>Track ${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}</name>
                     <trkseg>

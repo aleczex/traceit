@@ -108,7 +108,7 @@ class LocationService : Service() {
     private fun setupReceivers() {
         activityReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == "com.lokalizator.ACTIVITY_TRANSITION") {
+                if (intent?.action == "com.aletchec.traceit.ACTIVITY_TRANSITION") {
                     if (ActivityTransitionResult.hasResult(intent)) {
                         val result = ActivityTransitionResult.extractResult(intent)!!
                         for (event in result.transitionEvents) {
@@ -128,9 +128,9 @@ class LocationService : Service() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(activityReceiver,
-                IntentFilter("com.lokalizator.ACTIVITY_TRANSITION"), RECEIVER_NOT_EXPORTED)
+                IntentFilter("com.aletchec.traceit.ACTIVITY_TRANSITION"), RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(activityReceiver, IntentFilter("com.lokalizator.ACTIVITY_TRANSITION"))
+            registerReceiver(activityReceiver, IntentFilter("com.aletchec.traceit.ACTIVITY_TRANSITION"))
         }
     }
 
@@ -294,7 +294,7 @@ class LocationService : Service() {
                 ActivityTransition.ACTIVITY_TRANSITION_EXIT).build())
 
         val request = ActivityTransitionRequest(transitions)
-        val intent = Intent("com.lokalizator.ACTIVITY_TRANSITION")
+        val intent = Intent("com.aletchec.traceit.ACTIVITY_TRANSITION")
         val pendingIntent = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val task = ActivityRecognition.getClient(this).requestActivityTransitionUpdates(request, pendingIntent)
@@ -304,7 +304,7 @@ class LocationService : Service() {
     }
 
     private fun stopActivityTransitionUpdates() {
-        val intent = Intent("com.lokalizator.ACTIVITY_TRANSITION")
+        val intent = Intent("com.aletchec.traceit.ACTIVITY_TRANSITION")
         val pendingIntent = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         ActivityRecognition.getClient(this).removeActivityTransitionUpdates(pendingIntent)
     }
@@ -340,7 +340,7 @@ class LocationService : Service() {
         )
 
         return NotificationCompat.Builder(this, "location_channel")
-            .setContentTitle("Lokalizator")
+            .setContentTitle("TraceIt")
             .setContentText(content)
             .setSmallIcon(R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
@@ -387,7 +387,7 @@ class LocationService : Service() {
 
     private fun acquireWakeLock() {
         if (wakeLock == null) {
-            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Lokalizator::LocationWakeLock")
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TraceIt::LocationWakeLock")
         }
         if (wakeLock?.isHeld == false) {
             wakeLock?.acquire(300000)

@@ -78,7 +78,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.aletchec.traceit.ui.theme.LokalizatorTheme
+import com.aletchec.traceit.ui.theme.TraceItTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            LokalizatorTheme {
+            TraceItTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     TrackingScreen(modifier = Modifier.padding(innerPadding))
                 }
@@ -247,7 +247,7 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
                     .padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = "GPS Lokalizator",
+                    text = "GPS TraceIt",
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
