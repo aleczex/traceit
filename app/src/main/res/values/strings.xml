@@ -3,10 +3,22 @@
 
     <!-- General / Actions -->
     <string name="menu">Menu</string>
-    <string name="options">Options</string>
+    <string name="options">Settings</string>
     <string name="privacy_options">Privacy Options</string>
     <string name="open_source_licenses">Open Source Licenses</string>
     <string name="about">About</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System Default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language">Language</string>
+    <string name="language_system">System Default</string>
+    <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_polish">Polski</string>
+    <string name="language_portuguese">Português</string>
     <string name="about_traceit">About TraceIt</string>
     <string name="version_format">v%s</string>
     <string name="eula_html"><![CDATA[© 2026 Aletchec<br/><br/><a href="https://aletchec.com/traceit.html">Visit Website</a><br/><a href="https://aletchec.com/eula.html">End User License Agreement (EULA)</a>]]></string>

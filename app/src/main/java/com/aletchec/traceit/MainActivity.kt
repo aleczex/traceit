@@ -8,11 +8,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -99,6 +101,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.aletchec.traceit.ui.component.AboutAppDialog
 import com.aletchec.traceit.ui.component.OptionsDialog
+import com.aletchec.traceit.ui.theme.ThemeMode
 import com.aletchec.traceit.ui.theme.TraceItTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -121,9 +124,15 @@ import java.util.Locale
 
 enum class PickTarget { START, END }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val prefs = getSharedPreferences("tracking_prefs", MODE_PRIVATE)
+        val langTag = prefs.getString("app_language", "") ?: ""
+        if (langTag.isNotEmpty()) {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langTag))
+        }
 
         // osmdroid configuration
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
@@ -143,9 +152,32 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            TraceItTheme {
+            val themeStr = prefs.getString("theme_mode", "SYSTEM") ?: "SYSTEM"
+            var currentThemeMode by remember {
+                mutableStateOf(
+                    try { ThemeMode.valueOf(themeStr) } catch (e: Exception) { ThemeMode.SYSTEM }
+                )
+            }
+            var currentLanguage by remember { mutableStateOf(langTag) }
+
+            TraceItTheme(themeMode = currentThemeMode) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    TrackingScreen(modifier = Modifier.padding(innerPadding))
+                    TrackingScreen(
+                        currentThemeMode = currentThemeMode,
+                        onThemeSelected = { newMode ->
+                            currentThemeMode = newMode
+                            prefs.edit().putString("theme_mode", newMode.name).apply()
+                        },
+                        currentLanguage = currentLanguage,
+                        onLanguageSelected = { newTag ->
+                            currentLanguage = newTag
+                            prefs.edit().putString("app_language", newTag).apply()
+                            val localeList = if (newTag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(newTag)
+                            AppCompatDelegate.setApplicationLocales(localeList)
+                            recreate()
+                        },
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
@@ -167,7 +199,13 @@ private fun Activity.showPrivacyOptions() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackingScreen(modifier: Modifier = Modifier) {
+fun TrackingScreen(
+    currentThemeMode: ThemeMode,
+    onThemeSelected: (ThemeMode) -> Unit,
+    currentLanguage: String,
+    onLanguageSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val scheduler = remember { TrackingScheduler() }
     val gpxManager = remember { GpxManager(context) }
@@ -1031,10 +1069,11 @@ fun TrackingScreen(modifier: Modifier = Modifier) {
 
     if (showOptionsDialog) {
         OptionsDialog(
-            onDismiss = { showOptionsDialog = false },
-            onPrivacyClick = onPrivacyClick,
-            onLicensesClick = onLicensesClick,
-            onAboutClick = { showAboutDialog = true }
+            currentThemeMode = currentThemeMode,
+            onThemeSelected = onThemeSelected,
+            currentLanguage = currentLanguage,
+            onLanguageSelected = onLanguageSelected,
+            onDismiss = { showOptionsDialog = false }
         )
     }
 
