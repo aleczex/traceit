@@ -1384,7 +1384,7 @@ fun loadRewardedAd(context: Context, onAdLoaded: (RewardedAd?) -> Unit) {
     val adRequest = AdRequest.Builder().build()
     RewardedAd.load(
         context,
-        "ca-app-pub-3940256099942544/5224354917",
+        BuildConfig.REWARDED_AD_UNIT_ID,
         adRequest,
         object : RewardedAdLoadCallback() {
             override fun onAdLoaded(ad: RewardedAd) {

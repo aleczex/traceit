@@ -18,6 +18,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "mode"
+    productFlavors {
+        create("dev") {
+            dimension = "mode"
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-3940256099942544~3375251002"
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
+        }
+        create("prod") {
+            dimension = "mode"
+            manifestPlaceholders["ADMOB_APP_ID"] = "YOUR_PROD_ADMOB_APP_ID"
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"YOUR_PROD_REWARDED_AD_UNIT_ID\"")
+        }
+    }
+
     buildTypes {
         release {
             optimization {
