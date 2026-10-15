@@ -145,7 +145,14 @@
     <string name="no_saved_tracks">No saved tracks found.</string>
     <string name="duration_distance_format">Duration: %1$s | Distance: %2$s</string>
     <string name="file_size_format">Size: %.2f KB</string>
-    <string name="export_track_file">Export track file</string>
+    <string name="export_track_file">Download / Export track file</string>
+    <string name="download_unlocked_status">Downloads Unlocked (%s remaining)</string>
+    <string name="download_locked_status">Downloads Locked. Watch ad to unlock for 1 day.</string>
+    <string name="watch_ad_to_download_title">Unlock Track Download</string>
+    <string name="watch_ad_to_download_message">Watching a short video ad unlocks downloading and exporting saved tracks for 24 hours.</string>
+    <string name="watch_ad_btn">Watch Ad</string>
+    <string name="ad_not_ready">Ad is still loading. Please try again in a moment.</string>
+    <string name="downloads_unlocked_toast">Downloads unlocked for 24 hours!</string>
     <string name="delete_track_file">Delete track file</string>
     <string name="delete_track_title">Delete Track?</string>
     <string name="delete_active_track_warning">This is the track currently being recorded (if active). Deleting it will stop logging for the current schedule until a new point is recorded. Are you sure?</string>

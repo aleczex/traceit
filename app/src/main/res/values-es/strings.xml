@@ -145,7 +145,14 @@
     <string name="no_saved_tracks">No se encontraron rutas guardadas.</string>
     <string name="duration_distance_format">Duración: %1$s | Distancia: %2$s</string>
     <string name="file_size_format">Tamaño: %.2f KB</string>
-    <string name="export_track_file">Exportar archivo de ruta</string>
+    <string name="export_track_file">Descargar / Exportar archivo de ruta</string>
+    <string name="download_unlocked_status">Descargas desbloqueadas (restante %s)</string>
+    <string name="download_locked_status">Descargas bloqueadas. Ver anuncio para desbloquear por 1 día.</string>
+    <string name="watch_ad_to_download_title">Desbloquear descarga de ruta</string>
+    <string name="watch_ad_to_download_message">Ver un breve anuncio en video desbloquea la descarga y exportación de rutas guardadas durante 24 horas.</string>
+    <string name="watch_ad_btn">Ver anuncio</string>
+    <string name="ad_not_ready">El anuncio se está cargando. Inténtalo de nuevo en un momento.</string>
+    <string name="downloads_unlocked_toast">¡Descargas desbloqueadas por 24 horas!</string>
     <string name="delete_track_file">Eliminar archivo de ruta</string>
     <string name="delete_track_title">¿Eliminar ruta?</string>
     <string name="delete_active_track_warning">Esta es la ruta que se está grabando actualmente (si está activa). Eliminarla detendrá la grabación para el horario actual hasta que se grabe un nuevo punto. ¿Estás seguro?</string>

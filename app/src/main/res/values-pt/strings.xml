@@ -145,7 +145,14 @@
     <string name="no_saved_tracks">Nenhum trajeto salvo encontrado.</string>
     <string name="duration_distance_format">Duração: %1$s | Distância: %2$s</string>
     <string name="file_size_format">Tamanho: %.2f KB</string>
-    <string name="export_track_file">Exportar arquivo de trajeto</string>
+    <string name="export_track_file">Baixar / Exportar arquivo de trajeto</string>
+    <string name="download_unlocked_status">Downloads desbloqueados (%s restantes)</string>
+    <string name="download_locked_status">Downloads bloqueados. Assista ao anúncio para desbloquear por 1 dia.</string>
+    <string name="watch_ad_to_download_title">Desbloquear download do trajeto</string>
+    <string name="watch_ad_to_download_message">Assistir a um anúncio em vídeo curto desbloqueia o download e a exportação de trajetos salvos por 24 horas.</string>
+    <string name="watch_ad_btn">Assistir anúncio</string>
+    <string name="ad_not_ready">O anúncio ainda está carregando. Tente novamente em instantes.</string>
+    <string name="downloads_unlocked_toast">Downloads desbloqueados por 24 horas!</string>
     <string name="delete_track_file">Excluir arquivo de trajeto</string>
     <string name="delete_track_title">Excluir trajeto?</string>
     <string name="delete_active_track_warning">Este é o trajeto sendo gravado atualmente (se ativo). Excluí-lo interromperá a gravação para o horário atual até que um novo ponto seja gravado. Tem certeza?</string>

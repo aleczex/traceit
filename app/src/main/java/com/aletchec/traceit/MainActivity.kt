@@ -15,6 +15,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -137,6 +142,9 @@ class MainActivity : AppCompatActivity() {
         // osmdroid configuration
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = packageName
+
+        // Initialize Mobile Ads SDK
+        MobileAds.initialize(this) {}
 
         // UMP Consent Request
         val params = ConsentRequestParameters.Builder().build()
@@ -1349,6 +1357,46 @@ fun ScheduleSettingsDialog(
     )
 }
 
+fun isDownloadUnlocked(context: Context): Boolean {
+    val prefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+    val unlockUntil = prefs.getLong("download_unlocked_until", 0L)
+    return System.currentTimeMillis() < unlockUntil
+}
+
+fun getDownloadUnlockRemainingTime(context: Context): String {
+    val prefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+    val unlockUntil = prefs.getLong("download_unlocked_until", 0L)
+    val diff = unlockUntil - System.currentTimeMillis()
+    if (diff <= 0) return "0h 0m"
+    val hours = diff / (3600 * 1000)
+    val minutes = (diff % (3600 * 1000)) / (60 * 1000)
+    return String.format(Locale.US, "%dh %02dm", hours, minutes)
+}
+
+fun setDownloadUnlockedForOneDay(context: Context) {
+    val prefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
+    val oneDayMillis = 24 * 60 * 60 * 1000L
+    val unlockUntil = System.currentTimeMillis() + oneDayMillis
+    prefs.edit().putLong("download_unlocked_until", unlockUntil).apply()
+}
+
+fun loadRewardedAd(context: Context, onAdLoaded: (RewardedAd?) -> Unit) {
+    val adRequest = AdRequest.Builder().build()
+    RewardedAd.load(
+        context,
+        "ca-app-pub-3940256099942544/5224354917",
+        adRequest,
+        object : RewardedAdLoadCallback() {
+            override fun onAdLoaded(ad: RewardedAd) {
+                onAdLoaded(ad)
+            }
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                onAdLoaded(null)
+            }
+        }
+    )
+}
+
 @Composable
 fun SavedTracksList(
     gpxManager: GpxManager,
@@ -1361,12 +1409,36 @@ fun SavedTracksList(
 ) {
     var files by remember { mutableStateOf(emptyList<java.io.File>()) }
     var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
+    var fileToDownload by remember { mutableStateOf<java.io.File?>(null) }
+    var showAdDialog by remember { mutableStateOf(false) }
+    var rewardedAd by remember { mutableStateOf<RewardedAd?>(null) }
+    var isUnlocked by remember { mutableStateOf(false) }
+    var remainingTimeStr by remember { mutableStateOf("") }
+
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
-    LaunchedEffect(fileToDelete == null) {
+    LaunchedEffect(Unit) {
         files = gpxManager.getAllGpxFiles()
+        isUnlocked = isDownloadUnlocked(context)
+        if (isUnlocked) {
+            remainingTimeStr = getDownloadUnlockRemainingTime(context)
+        }
+        loadRewardedAd(context) { ad ->
+            rewardedAd = ad
+        }
+    }
+
+    LaunchedEffect(isUnlocked) {
+        while (true) {
+            val unlocked = isDownloadUnlocked(context)
+            isUnlocked = unlocked
+            if (unlocked) {
+                remainingTimeStr = getDownloadUnlockRemainingTime(context)
+            }
+            delay(1000)
+        }
     }
 
     LaunchedEffect(selectedFile, files) {
@@ -1378,99 +1450,180 @@ fun SavedTracksList(
         }
     }
 
-    if (files.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_saved_tracks), style = MaterialTheme.typography.bodyMedium)
-        }
-        return
-    }
-
-    LazyColumn(state = listState, modifier = modifier) {
-        items(files) { file ->
-            val activeRange = scheduler.getActiveRange(ranges)
-            val activeFile = gpxManager.getGpxFile(activeRange)
-            val isLoaded = file == selectedFile
-            val isActiveFile = file.absolutePath == activeFile.absolutePath
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(
-                        when {
-                            isActiveFile -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                            isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    val name = file.name.replace("track_", "").replace(".gpx", "")
-                    val formattedName = try {
-                        val parts = name.split("_")
-                        if (parts.size == 3) {
-                            val dateStr = parts[0]
-                            val startStr = parts[1]
-                            val endStr = parts[2]
-                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
-                        } else if (parts.size == 1 && parts[0].length == 8) {
-                            val dateStr = parts[0]
-                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
-                        } else {
-                            file.name
-                        }
-                    } catch (e: Exception) {
-                        file.name
+    Column(modifier = modifier) {
+        val bannerBg = if (isUnlocked) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+        val bannerTextColor = if (isUnlocked) Color(0xFF2E7D32) else Color(0xFFE65100)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(bannerBg)
+                .clickable {
+                    if (!isUnlocked) {
+                        fileToDownload = files.firstOrNull()
+                        showAdDialog = true
                     }
+                }
+                .padding(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isUnlocked) {
+                    stringResource(R.string.download_unlocked_status, remainingTimeStr)
+                } else {
+                    stringResource(R.string.download_locked_status)
+                },
+                color = bannerTextColor,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
 
-                    Text(
-                        text = formattedName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when {
-                            isActiveFile -> MaterialTheme.colorScheme.error
-                            isLoaded -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        if (files.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_saved_tracks), style = MaterialTheme.typography.bodyMedium)
+            }
+        } else {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
+                items(files) { file ->
+                    val activeRange = scheduler.getActiveRange(ranges)
+                    val activeFile = gpxManager.getGpxFile(activeRange)
+                    val isLoaded = file == selectedFile
+                    val isActiveFile = file.absolutePath == activeFile.absolutePath
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .background(
+                                when {
+                                    isActiveFile -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                    isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            val name = file.name.replace("track_", "").replace(".gpx", "")
+                            val formattedName = try {
+                                val parts = name.split("_")
+                                if (parts.size == 3) {
+                                    val dateStr = parts[0]
+                                    val startStr = parts[1]
+                                    val endStr = parts[2]
+                                    "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
+                                } else if (parts.size == 1 && parts[0].length == 8) {
+                                    val dateStr = parts[0]
+                                    "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
+                                } else {
+                                    file.name
+                                }
+                            } catch (e: Exception) {
+                                file.name
+                            }
+
+                            Text(
+                                text = formattedName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = when {
+                                    isActiveFile -> MaterialTheme.colorScheme.error
+                                    isLoaded -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val stats = remember(file) { gpxManager.getTrackStatistics(file) }
+                            Text(
+                                text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Text(
+                                text = stringResource(R.string.file_size_format, file.length() / 1024.0),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    val stats = remember(file) { gpxManager.getTrackStatistics(file) }
-                    Text(
-                        text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                    Text(
-                        text = stringResource(R.string.file_size_format, file.length() / 1024.0),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
 
-                Button(onClick = {
-                    onSelectFile(file)
-                }) {
-                    Text(stringResource(R.string.load))
-                }
+                        Button(onClick = {
+                            onSelectFile(file)
+                        }) {
+                            Text(stringResource(R.string.load))
+                        }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                IconButton(onClick = {
-                    onExportFile(file)
-                }) {
-                    Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
-                }
+                        IconButton(onClick = {
+                            if (isDownloadUnlocked(context)) {
+                                onExportFile(file)
+                            } else {
+                                fileToDownload = file
+                                showAdDialog = true
+                            }
+                        }) {
+                            Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
+                        }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                IconButton(onClick = {
-                    fileToDelete = file
-                }) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                        IconButton(onClick = {
+                            fileToDelete = file
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (showAdDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdDialog = false },
+            title = { Text(stringResource(R.string.watch_ad_to_download_title)) },
+            text = { Text(stringResource(R.string.watch_ad_to_download_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val activity = context as? Activity
+                    if (rewardedAd != null && activity != null) {
+                        rewardedAd?.show(activity) { _ ->
+                            setDownloadUnlockedForOneDay(context)
+                            isUnlocked = true
+                            remainingTimeStr = getDownloadUnlockRemainingTime(context)
+                            Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
+                            showAdDialog = false
+                            fileToDownload?.let { onExportFile(it) }
+                            loadRewardedAd(context) { ad -> rewardedAd = ad }
+                        }
+                    } else {
+                        Toast.makeText(context, R.string.ad_not_ready, Toast.LENGTH_SHORT).show()
+                        loadRewardedAd(context) { ad ->
+                            rewardedAd = ad
+                            if (ad != null && activity != null) {
+                                ad.show(activity) { _ ->
+                                    setDownloadUnlockedForOneDay(context)
+                                    isUnlocked = true
+                                    remainingTimeStr = getDownloadUnlockRemainingTime(context)
+                                    Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
+                                    showAdDialog = false
+                                    fileToDownload?.let { onExportFile(it) }
+                                    loadRewardedAd(context) { loaded -> rewardedAd = loaded }
+                                }
+                            }
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.watch_ad_btn))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     if (fileToDelete != null) {

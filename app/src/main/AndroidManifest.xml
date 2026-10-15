@@ -24,6 +24,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TraceIt">
 
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3375251002"/>
+
         <service
             android:name=".LocationService"
             android:enabled="true"

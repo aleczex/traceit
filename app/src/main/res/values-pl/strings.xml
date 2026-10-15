@@ -145,7 +145,14 @@
     <string name="no_saved_tracks">Brak zapisanych śladów.</string>
     <string name="duration_distance_format">Czas trwania: %1$s | Dystans: %2$s</string>
     <string name="file_size_format">Rozmiar: %.2f KB</string>
-    <string name="export_track_file">Eksportuj plik śladu</string>
+    <string name="export_track_file">Pobierz / Eksportuj plik śladu</string>
+    <string name="download_unlocked_status">Pobieranie odblokowane (pozostało %s)</string>
+    <string name="download_locked_status">Pobieranie zablokowane. Obejrzyj reklamę, aby odblokować na 1 dzień.</string>
+    <string name="watch_ad_to_download_title">Odblokuj pobieranie śladu</string>
+    <string name="watch_ad_to_download_message">Obejrzenie krótkiej reklamy wideo odblokowuje pobieranie i eksportowanie zapisanych śladów na 24 godziny.</string>
+    <string name="watch_ad_btn">Obejrzyj reklamę</string>
+    <string name="ad_not_ready">Reklama się ładuje. Spróbuj ponownie za chwilę.</string>
+    <string name="downloads_unlocked_toast">Pobieranie odblokowane na 24 godziny!</string>
     <string name="delete_track_file">Usuń plik śladu</string>
     <string name="delete_track_title">Usunąć ślad?</string>
     <string name="delete_active_track_warning">To jest ślad obecnie nagrywany (jeśli jest aktywny). Usunięcie go zatrzyma rejestrowanie dla bieżącego harmonogramu, dopóki nie zostanie zapisany nowy punkt. Czy na pewno?</string>

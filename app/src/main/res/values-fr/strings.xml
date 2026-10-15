@@ -145,7 +145,14 @@
     <string name="no_saved_tracks">Aucune trace enregistrée.</string>
     <string name="duration_distance_format">Durée: %1$s | Distance: %2$s</string>
     <string name="file_size_format">Taille: %.2f Ko</string>
-    <string name="export_track_file">Exporter le fichier de trace</string>
+    <string name="export_track_file">Télécharger / Exporter le fichier de trace</string>
+    <string name="download_unlocked_status">Téléchargements déverrouillés (%s restants)</string>
+    <string name="download_locked_status">Téléchargements verrouillés. Regardez une publicité pour déverrouiller 1 jour.</string>
+    <string name="watch_ad_to_download_title">Déverrouiller le téléchargement de la trace</string>
+    <string name="watch_ad_to_download_message">Regarder une courte publicité vidéo déverrouille le téléchargement et l\'exportation des traces enregistrées pendant 24 heures.</string>
+    <string name="watch_ad_btn">Regarder la pub</string>
+    <string name="ad_not_ready">La publicité est en cours de chargement. Veuillez réessayer dans un moment.</string>
+    <string name="downloads_unlocked_toast">Téléchargements déverrouillés pendant 24 heures !</string>
     <string name="delete_track_file">Supprimer le fichier de trace</string>
     <string name="delete_track_title">Supprimer la trace ?</string>
     <string name="delete_active_track_warning">Il s\'agit de la trace actuellement enregistrée (si active). La supprimer arrêtera l\'enregistrement jusqu\'à ce qu\'un nouveau point soit enregistré. Êtes-vous sûr ?</string>
