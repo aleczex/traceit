@@ -386,7 +386,7 @@ fun TrackingScreen(
                         onClick = {
                             selectedTab = 0
                         },
-                        text = { Text(stringResource(R.string.tab_schedules)) }
+                        text = { Text(stringResource(R.string.tab_schedules), maxLines = 1, softWrap = false) }
                     )
                     Tab(
                         selected = selectedTab == 1,
@@ -394,7 +394,7 @@ fun TrackingScreen(
                             selectedTab = 1
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
-                        text = { Text(stringResource(R.string.tab_points)) }
+                        text = { Text(stringResource(R.string.tab_points), maxLines = 1, softWrap = false) }
                     )
                     Tab(
                         selected = selectedTab == 2,
@@ -402,7 +402,7 @@ fun TrackingScreen(
                             selectedTab = 2
                             scope.launch { scaffoldState.bottomSheetState.expand() }
                         },
-                        text = { Text(stringResource(R.string.tab_saved)) }
+                        text = { Text(stringResource(R.string.tab_saved), maxLines = 1, softWrap = false) }
                     )
                 }
 
@@ -606,7 +606,7 @@ fun TrackingScreen(
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 100.dp),
+                    .padding(end = 16.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
