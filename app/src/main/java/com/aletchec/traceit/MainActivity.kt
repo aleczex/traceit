@@ -22,6 +22,7 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1418,6 +1419,7 @@ fun SavedTracksList(
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         files = gpxManager.getAllGpxFiles()
@@ -1574,6 +1576,67 @@ fun SavedTracksList(
                             Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
                         }
                     }
+                }
+            }
+
+            // Interactive Horizontal Scrollbar / Slider
+            val totalItems = files.size
+            if (totalItems > 0) {
+                val firstVisibleItemIndex = listState.firstVisibleItemIndex
+                val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
+                val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
+                    firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
+                } else {
+                    0f
+                }.coerceIn(0f, 1f)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .pointerInput(totalItems, visibleItemCount) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    val trackWidth = size.width.toFloat()
+                                    if (trackWidth > 0f) {
+                                        val tapFraction = (offset.x / trackWidth).coerceIn(0f, 1f)
+                                        val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                        coroutineScope.launch {
+                                            listState.scrollToItem(targetIndex)
+                                        }
+                                    }
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    val trackWidth = size.width.toFloat()
+                                    if (trackWidth > 0f) {
+                                        val dragFraction = (change.position.x / trackWidth).coerceIn(0f, 1f)
+                                        val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                        coroutineScope.launch {
+                                            listState.scrollToItem(targetIndex)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                    )
+
+                    val thumbWidthFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(thumbWidthFraction)
+                            .align(androidx.compose.ui.BiasAlignment(scrollProgress * 2f - 1f, 0f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                    )
                 }
             }
         }

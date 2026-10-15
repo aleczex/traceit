@@ -88,12 +88,24 @@ class LocationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        intent?.getStringExtra("ranges")?.let { rangesStr ->
+            if (rangesStr.isNotBlank()) {
+                val parsed = scheduler.parseRanges(rangesStr)
+                if (parsed.isNotEmpty()) {
+                    scheduler.saveSchedules(this, parsed)
+                }
+            }
+        }
+
+        startForegroundService()
+
         val currentRanges = scheduler.loadSchedules(this)
         if (scheduler.getActiveRange(currentRanges) == null) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
-        startForegroundService()
+
         evaluateState()
         return START_STICKY
     }
@@ -144,6 +156,7 @@ class LocationService : Service() {
         if (scheduler.getActiveRange(currentRanges) != null) {
             startTracking()
         } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
@@ -326,9 +339,11 @@ class LocationService : Service() {
     }
 
     private fun stopActivityTransitionUpdates() {
-        val intent = Intent("com.aletchec.traceit.ACTIVITY_TRANSITION")
-        val pendingIntent = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        ActivityRecognition.getClient(this).removeActivityTransitionUpdates(pendingIntent)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) {
+            val intent = Intent("com.aletchec.traceit.ACTIVITY_TRANSITION")
+            val pendingIntent = PendingIntent.getBroadcast(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            ActivityRecognition.getClient(this).removeActivityTransitionUpdates(pendingIntent)
+        }
     }
 
     private fun startForegroundService() {
@@ -351,10 +366,14 @@ class LocationService : Service() {
             getString(com.aletchec.traceit.R.string.notification_text_init_gps)
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(1, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(1, notification)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
