@@ -27,6 +27,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -472,6 +473,16 @@ fun TrackingScreen(
                                                     pickTarget = PickTarget.END
                                                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                                                 }
+                                            },
+                                            onSetStartRadius = {
+                                                editingRadiusScheduleIndex = index
+                                                editingRadiusTarget = PickTarget.START
+                                                showRadiusDialog = true
+                                            },
+                                            onSetEndRadius = {
+                                                editingRadiusScheduleIndex = index
+                                                editingRadiusTarget = PickTarget.END
+                                                showRadiusDialog = true
                                             }
                                         )
                                     }
@@ -821,16 +832,18 @@ fun TrackingScreen(
                 showSettingsDialog = false
             },
             onPickStart = {
+                val targetIndex = editingSettingsScheduleIndex
                 editingSettingsScheduleIndex = -1
                 showSettingsDialog = false
-                pickingScheduleIndex = editingSettingsScheduleIndex
+                pickingScheduleIndex = targetIndex
                 pickTarget = PickTarget.START
                 scope.launch { scaffoldState.bottomSheetState.partialExpand() }
             },
             onPickEnd = {
+                val targetIndex = editingSettingsScheduleIndex
                 editingSettingsScheduleIndex = -1
                 showSettingsDialog = false
-                pickingScheduleIndex = editingSettingsScheduleIndex
+                pickingScheduleIndex = targetIndex
                 pickTarget = PickTarget.END
                 scope.launch { scaffoldState.bottomSheetState.partialExpand() }
             },
@@ -1125,7 +1138,9 @@ fun ScheduleItem(
     isPickingEnd: Boolean,
     onOpenSettings: () -> Unit,
     onTogglePickStart: () -> Unit,
-    onTogglePickEnd: () -> Unit
+    onTogglePickEnd: () -> Unit,
+    onSetStartRadius: (() -> Unit)? = null,
+    onSetEndRadius: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     Row(
@@ -1171,32 +1186,80 @@ fun ScheduleItem(
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val hasStart = range.startLat != null && range.startLon != null
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = stringResource(R.string.start_point_desc),
-                    tint = if (hasStart) Color(0xFF2E7D32) else Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(
-                    text = if (hasStart) stringResource(R.string.start_radius_format, range.startRadiusMeters) else stringResource(R.string.start_not_set),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (hasStart) Color(0xFF2E7D32) else Color.Gray
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (isPickingStart) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            else Color.Transparent
+                        )
+                        .clickable { onTogglePickStart() }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = stringResource(R.string.start_point_desc),
+                        tint = if (hasStart) Color(0xFF2E7D32) else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = if (hasStart) stringResource(R.string.start_radius_format, range.startRadiusMeters) else stringResource(R.string.start_not_set),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (hasStart || isPickingStart) Color(0xFF2E7D32) else Color.Gray
+                    )
+                }
+
+                if (hasStart && onSetStartRadius != null) {
+                    Spacer(modifier = Modifier.width(2.dp))
+                    TextButton(
+                        onClick = onSetStartRadius,
+                        modifier = Modifier.height(24.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text(stringResource(R.string.radius), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 val hasEnd = range.endLat != null && range.endLon != null
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = stringResource(R.string.end_point_desc),
-                    tint = if (hasEnd) Color(0xFFC62828) else Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(
-                    text = if (hasEnd) stringResource(R.string.end_radius_format, range.endRadiusMeters) else stringResource(R.string.end_not_set),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (hasEnd) Color(0xFFC62828) else Color.Gray
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (isPickingEnd) MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+                            else Color.Transparent
+                        )
+                        .clickable { onTogglePickEnd() }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = stringResource(R.string.end_point_desc),
+                        tint = if (hasEnd) Color(0xFFC62828) else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = if (hasEnd) stringResource(R.string.end_radius_format, range.endRadiusMeters) else stringResource(R.string.end_not_set),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (hasEnd || isPickingEnd) Color(0xFFC62828) else Color.Gray
+                    )
+                }
+
+                if (hasEnd && onSetEndRadius != null) {
+                    Spacer(modifier = Modifier.width(2.dp))
+                    TextButton(
+                        onClick = onSetEndRadius,
+                        modifier = Modifier.height(24.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text(stringResource(R.string.radius), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
         }
 
