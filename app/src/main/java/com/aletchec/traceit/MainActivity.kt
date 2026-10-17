@@ -548,7 +548,8 @@ fun TrackingScreen(
                 pickingScheduleIndex = pickingScheduleIndex,
                 onPointSelectedOnMap = { point ->
                     if (pickingScheduleIndex in ranges.indices) {
-                        val currentRange = ranges[pickingScheduleIndex]
+                        val targetIndex = pickingScheduleIndex
+                        val currentRange = ranges[targetIndex]
                         if (pickTarget == PickTarget.START) {
                             if (currentRange.endLat != null && currentRange.endLon != null && currentRange.endRadiusMeters > 0) {
                                 val results = FloatArray(1)
@@ -559,12 +560,14 @@ fun TrackingScreen(
                                 )
                                 if (results[0] <= currentRange.endRadiusMeters) {
                                     Toast.makeText(context, R.string.start_point_cannot_be_within_end, Toast.LENGTH_SHORT).show()
+                                    editingSettingsScheduleIndex = targetIndex
+                                    showSettingsDialog = true
                                     pickingScheduleIndex = -1
                                     return@TrackMap
                                 }
                             }
                             val defaultRadius = if (currentRange.startRadiusMeters > 0) currentRange.startRadiusMeters else 50
-                            ranges[pickingScheduleIndex] = currentRange.copy(
+                            ranges[targetIndex] = currentRange.copy(
                                 startLat = point.latitude,
                                 startLon = point.longitude,
                                 startRadiusMeters = defaultRadius
@@ -581,12 +584,14 @@ fun TrackingScreen(
                                 )
                                 if (results[0] <= currentRange.startRadiusMeters) {
                                     Toast.makeText(context, R.string.end_point_cannot_be_within_start, Toast.LENGTH_SHORT).show()
+                                    editingSettingsScheduleIndex = targetIndex
+                                    showSettingsDialog = true
                                     pickingScheduleIndex = -1
                                     return@TrackMap
                                 }
                             }
                             val defaultRadius = if (currentRange.endRadiusMeters > 0) currentRange.endRadiusMeters else 50
-                            ranges[pickingScheduleIndex] = currentRange.copy(
+                            ranges[targetIndex] = currentRange.copy(
                                 endLat = point.latitude,
                                 endLon = point.longitude,
                                 endRadiusMeters = defaultRadius
@@ -594,6 +599,8 @@ fun TrackingScreen(
                             scheduler.saveSchedules(context, ranges)
                             Toast.makeText(context, R.string.end_point_set, Toast.LENGTH_SHORT).show()
                         }
+                        editingSettingsScheduleIndex = targetIndex
+                        showSettingsDialog = true
                     }
                     pickingScheduleIndex = -1
                 },
@@ -806,7 +813,13 @@ fun TrackingScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = { pickingScheduleIndex = -1 }) {
+                        TextButton(onClick = {
+                            if (pickingScheduleIndex in ranges.indices) {
+                                editingSettingsScheduleIndex = pickingScheduleIndex
+                                showSettingsDialog = true
+                            }
+                            pickingScheduleIndex = -1
+                        }) {
                             Text(stringResource(R.string.cancel))
                         }
                     }
