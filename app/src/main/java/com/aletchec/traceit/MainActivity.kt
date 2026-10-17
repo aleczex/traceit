@@ -2158,7 +2158,7 @@ fun TimePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onConfirm(state.hour, state.minute) }) {
-                Text(stringResource(R.string.cancel)) // Replaced ok/cancel below
+                Text(stringResource(R.string.ok))
             }
         },
         dismissButton = {
