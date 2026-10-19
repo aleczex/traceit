@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.InputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,6 +21,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val props = Properties()
+            val propertiesFile = rootProject.file("local.properties")
+            if (propertiesFile.exists()) {
+                propertiesFile.inputStream().use<InputStream, Unit> {
+                    props.load(it)
+                }
+            }
+
+            val keystoreFile = props.getProperty("RELEASE_STORE_FILE")
+            storeFile = if (keystoreFile != null) file(keystoreFile) else null
+            storePassword = props.getProperty("RELEASE_STORE_PASSWORD")
+            keyAlias = props.getProperty("RELEASE_KEY_ALIAS")
+            keyPassword = props.getProperty("RELEASE_KEY_PASSWORD")
+        }
+    }
+
     flavorDimensions += "mode"
     productFlavors {
         create("dev") {
@@ -35,6 +56,10 @@ android {
 
     buildTypes {
         release {
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
             optimization {
                 enable = false
             }
