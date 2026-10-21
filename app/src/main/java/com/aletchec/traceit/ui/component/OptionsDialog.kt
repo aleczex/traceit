@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.BrightnessMedium
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aletchec.traceit.BuildConfig
 import com.aletchec.traceit.R
 import com.aletchec.traceit.ui.theme.ThemeMode
 
@@ -37,10 +40,12 @@ fun OptionsDialog(
     onThemeSelected: (ThemeMode) -> Unit,
     currentLanguage: String,
     onLanguageSelected: (String) -> Unit,
+    onImportGpx: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showDevDialog by remember { mutableStateOf(false) }
 
     val themeDescription = when (currentThemeMode) {
         ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
@@ -75,6 +80,13 @@ fun OptionsDialog(
                     icon = Icons.Rounded.Translate,
                     onClick = { showLanguageDialog = true }
                 )
+                if (BuildConfig.FLAVOR == "dev" || BuildConfig.DEBUG) {
+                    OptionsActionItem(
+                        title = stringResource(R.string.developer_options),
+                        icon = Icons.Rounded.Build,
+                        onClick = { showDevDialog = true }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -83,6 +95,31 @@ fun OptionsDialog(
             }
         }
     )
+
+    if (showDevDialog) {
+        AlertDialog(
+            onDismissRequest = { showDevDialog = false },
+            title = { Text(stringResource(R.string.developer_options)) },
+            text = {
+                Column {
+                    OptionsActionItem(
+                        title = stringResource(R.string.import_gpx_file),
+                        icon = Icons.Rounded.UploadFile,
+                        onClick = {
+                            showDevDialog = false
+                            onDismiss()
+                            onImportGpx()
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDevDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
 
     if (showThemeDialog) {
         AlertDialog(

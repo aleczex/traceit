@@ -190,4 +190,10 @@
     <string name="duration_seconds">%ds</string>
     <string name="distance_km">%.2f km</string>
     <string name="distance_m">%.0f m</string>
+
+    <!-- Developer Options -->
+    <string name="developer_options">Developer Options</string>
+    <string name="import_gpx_file">Import GPX File</string>
+    <string name="gpx_imported_successfully">GPX file imported successfully</string>
+    <string name="failed_to_import_gpx">Failed to import GPX file: %s</string>
 </resources>

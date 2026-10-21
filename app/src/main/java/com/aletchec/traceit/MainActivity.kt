@@ -295,6 +295,41 @@ fun TrackingScreen(
         }
     }
 
+    val importGpxLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { sourceUri ->
+            try {
+                var fileName = "imported_${System.currentTimeMillis()}.gpx"
+                context.contentResolver.query(sourceUri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (cursor.moveToFirst() && nameIndex != -1) {
+                        val displayName = cursor.getString(nameIndex)
+                        if (!displayName.isNullOrBlank()) {
+                            fileName = if (displayName.endsWith(".gpx", ignoreCase = true)) {
+                                displayName
+                            } else {
+                                "$displayName.gpx"
+                            }
+                        }
+                    }
+                }
+
+                val targetDir = context.getExternalFilesDir(null)
+                val destFile = java.io.File(targetDir, fileName)
+                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                    destFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                Toast.makeText(context, R.string.gpx_imported_successfully, Toast.LENGTH_SHORT).show()
+                selectedFile = destFile
+            } catch (e: Exception) {
+                Toast.makeText(context, context.getString(R.string.failed_to_import_gpx, e.message ?: ""), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     val permissionsToRequest = mutableListOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
@@ -1108,6 +1143,9 @@ fun TrackingScreen(
             onThemeSelected = onThemeSelected,
             currentLanguage = currentLanguage,
             onLanguageSelected = onLanguageSelected,
+            onImportGpx = {
+                importGpxLauncher.launch(arrayOf("application/gpx+xml", "text/xml", "application/octet-stream", "*/*"))
+            },
             onDismiss = { showOptionsDialog = false }
         )
     }
