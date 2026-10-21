@@ -22,7 +22,6 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1600,157 +1599,167 @@ fun SavedTracksList(
                 Text(stringResource(R.string.no_saved_tracks), style = MaterialTheme.typography.bodyMedium)
             }
         } else {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
-                items(files) { file ->
-                    val activeRange = scheduler.getActiveRange(ranges)
-                    val activeFile = gpxManager.getGpxFile(activeRange)
-                    val isLoaded = file == selectedFile
-                    val isActiveFile = file.absolutePath == activeFile.absolutePath
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(files) { file ->
+                        val activeRange = scheduler.getActiveRange(ranges)
+                        val activeFile = gpxManager.getGpxFile(activeRange)
+                        val isLoaded = file == selectedFile
+                        val isActiveFile = file.absolutePath == activeFile.absolutePath
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .background(
-                                when {
-                                    isActiveFile -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                                    isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                },
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            val name = file.name.replace("track_", "").replace(".gpx", "")
-                            val formattedName = try {
-                                val parts = name.split("_")
-                                if (parts.size == 3) {
-                                    val dateStr = parts[0]
-                                    val startStr = parts[1]
-                                    val endStr = parts[2]
-                                    "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
-                                } else if (parts.size == 1 && parts[0].length == 8) {
-                                    val dateStr = parts[0]
-                                    "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
-                                } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .background(
+                                    when {
+                                        isActiveFile -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                        isLoaded -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val name = file.name.replace("track_", "").replace(".gpx", "")
+                                val formattedName = try {
+                                    val parts = name.split("_")
+                                    if (parts.size == 3) {
+                                        val dateStr = parts[0]
+                                        val startStr = parts[1]
+                                        val endStr = parts[2]
+                                        "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
+                                    } else if (parts.size == 1 && parts[0].length == 8) {
+                                        val dateStr = parts[0]
+                                        "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
+                                    } else {
+                                        file.name
+                                    }
+                                } catch (e: Exception) {
                                     file.name
                                 }
-                            } catch (e: Exception) {
-                                file.name
+
+                                Text(
+                                    text = formattedName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = when {
+                                        isActiveFile -> MaterialTheme.colorScheme.error
+                                        isLoaded -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val stats = remember(file) { gpxManager.getTrackStatistics(file) }
+                                Text(
+                                    text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Text(
+                                    text = stringResource(R.string.file_size_format, file.length() / 1024.0),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
 
-                            Text(
-                                text = formattedName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = when {
-                                    isActiveFile -> MaterialTheme.colorScheme.error
-                                    isLoaded -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            Button(onClick = {
+                                onSelectFile(file)
+                            }) {
+                                Text(stringResource(R.string.load))
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            IconButton(onClick = {
+                                if (isDownloadUnlocked(context)) {
+                                    onExportFile(file)
+                                } else {
+                                    fileToDownload = file
+                                    showAdDialog = true
                                 }
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            val stats = remember(file) { gpxManager.getTrackStatistics(file) }
-                            Text(
-                                text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Text(
-                                text = stringResource(R.string.file_size_format, file.length() / 1024.0),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        Button(onClick = {
-                            onSelectFile(file)
-                        }) {
-                            Text(stringResource(R.string.load))
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        IconButton(onClick = {
-                            if (isDownloadUnlocked(context)) {
-                                onExportFile(file)
-                            } else {
-                                fileToDownload = file
-                                showAdDialog = true
+                            }) {
+                                Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
                             }
-                        }) {
-                            Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
-                        }
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
 
-                        IconButton(onClick = {
-                            fileToDelete = file
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                            IconButton(onClick = {
+                                fileToDelete = file
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                            }
                         }
                     }
                 }
-            }
 
-            // Interactive Horizontal Scrollbar / Slider
-            val totalItems = files.size
-            if (totalItems > 0) {
-                val firstVisibleItemIndex = listState.firstVisibleItemIndex
-                val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
-                val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
-                    firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
-                } else {
-                    0f
-                }.coerceIn(0f, 1f)
+                // Interactive Vertical Scrollbar
+                val totalItems = files.size
+                if (totalItems > 0) {
+                    val firstVisibleItemIndex = listState.firstVisibleItemIndex
+                    val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
+                    val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
+                        firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
+                    } else {
+                        0f
+                    }.coerceIn(0f, 1f)
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(24.dp)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .pointerInput(totalItems, visibleItemCount) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    val trackWidth = size.width.toFloat()
-                                    if (trackWidth > 0f) {
-                                        val tapFraction = (offset.x / trackWidth).coerceIn(0f, 1f)
-                                        val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                        coroutineScope.launch {
-                                            listState.scrollToItem(targetIndex)
-                                        }
-                                    }
-                                },
-                                onHorizontalDrag = { change, _ ->
-                                    change.consume()
-                                    val trackWidth = size.width.toFloat()
-                                    if (trackWidth > 0f) {
-                                        val dragFraction = (change.position.x / trackWidth).coerceIn(0f, 1f)
-                                        val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                        coroutineScope.launch {
-                                            listState.scrollToItem(targetIndex)
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                ) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.Center)
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                    )
-
-                    val thumbWidthFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
-                    Box(
-                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .width(24.dp)
                             .fillMaxHeight()
-                            .fillMaxWidth(thumbWidthFraction)
-                            .align(androidx.compose.ui.BiasAlignment(scrollProgress * 2f - 1f, 0f))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
-                    )
+                            .padding(vertical = 8.dp)
+                            .pointerInput(totalItems, visibleItemCount) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { offset ->
+                                        val trackHeight = size.height.toFloat()
+                                        if (trackHeight > 0f) {
+                                            val tapFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
+                                            val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIndex)
+                                            }
+                                        }
+                                    },
+                                    onVerticalDrag = { change, _ ->
+                                        change.consume()
+                                        val trackHeight = size.height.toFloat()
+                                        if (trackHeight > 0f) {
+                                            val dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
+                                            val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIndex)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .width(4.dp)
+                                .fillMaxHeight()
+                                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                        )
+
+                        val thumbHeightFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(thumbHeightFraction)
+                                .align(androidx.compose.ui.BiasAlignment(0f, scrollProgress * 2f - 1f))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                        )
+                    }
                 }
             }
         }
