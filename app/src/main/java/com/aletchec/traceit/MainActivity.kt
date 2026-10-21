@@ -511,7 +511,7 @@ fun TrackingScreen(
                                 }
                             }
                         }
-                        1 -> TrackPointsList(points = trackPoints, modifier = Modifier.fillMaxSize())
+                        1 -> TrackPointsList(points = trackPoints, gpxManager = gpxManager, modifier = Modifier.fillMaxSize())
                         2 -> SavedTracksList(
                             gpxManager = gpxManager,
                             scheduler = scheduler,
@@ -745,8 +745,8 @@ fun TrackingScreen(
                 val stats = remember(currentFile, trackPoints) {
                     gpxManager.getTrackStatistics(currentFile)
                 }
-                val startTimeStr = validTrackPoints.firstOrNull()?.time?.replace("T", " ")?.replace("Z", "") ?: "-"
-                val endTimeStr = validTrackPoints.lastOrNull()?.time?.replace("T", " ")?.replace("Z", "") ?: "-"
+                val startTimeStr = validTrackPoints.firstOrNull()?.time?.let { gpxManager.formatPointTime(it) } ?: "-"
+                val endTimeStr = validTrackPoints.lastOrNull()?.time?.let { gpxManager.formatPointTime(it) } ?: "-"
                 val distanceStr = gpxManager.formatDistance(stats.distanceMeters)
                 val durationStr = gpxManager.formatDuration(stats.durationMillis)
 
@@ -1990,7 +1990,7 @@ fun TrackMap(
 }
 
 @Composable
-fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Modifier) {
+fun TrackPointsList(points: List<GpxManager.TrackPoint>, gpxManager: GpxManager, modifier: Modifier = Modifier) {
     if (points.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text(stringResource(R.string.no_gps_points), style = MaterialTheme.typography.bodyMedium)
@@ -2025,7 +2025,7 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, modifier: Modifier = Mo
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = stringResource(R.string.time_label, pt.time.replace("T", " ").replace("Z", "")),
+                                text = stringResource(R.string.time_label, gpxManager.formatPointTime(pt.time)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (pt.isIgnored) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                             )

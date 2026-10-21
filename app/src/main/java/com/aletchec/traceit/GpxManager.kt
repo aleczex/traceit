@@ -141,4 +141,16 @@ class GpxManager(private val context: Context) {
             context.getString(R.string.distance_m, distanceMeters)
         }
     }
+
+    fun formatPointTime(timeStr: String): String {
+        try {
+            val date = dateFormat.parse(timeStr) ?: return timeStr.replace("T", " ").replace("Z", "")
+            val localFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply {
+                timeZone = TimeZone.getDefault()
+            }
+            return localFormat.format(date)
+        } catch (e: Exception) {
+            return timeStr.replace("T", " ").replace("Z", "")
+        }
+    }
 }
