@@ -282,6 +282,11 @@ fun TrackingScreen(
     var selectedFile by remember { mutableStateOf<java.io.File?>(null) }
     var fileToExport by remember { mutableStateOf<java.io.File?>(null) }
 
+    val failedToSaveTrackFormat = stringResource(R.string.failed_to_save_track)
+    val exportFailedFormat = stringResource(R.string.export_failed)
+    val failedToImportGpxFormat = stringResource(R.string.failed_to_import_gpx)
+    val defaultScheduleName = stringResource(R.string.schedule_default_name)
+
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/gpx+xml")
     ) { uri ->
@@ -295,7 +300,7 @@ fun TrackingScreen(
                     }
                     Toast.makeText(context, R.string.track_saved_successfully, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, context.getString(R.string.failed_to_save_track, e.message ?: ""), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, String.format(failedToSaveTrackFormat, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -315,7 +320,7 @@ fun TrackingScreen(
                     }
                     Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, context.getString(R.string.export_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, String.format(exportFailedFormat, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -335,7 +340,7 @@ fun TrackingScreen(
                     }
                     Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, context.getString(R.string.export_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, String.format(exportFailedFormat, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -371,7 +376,7 @@ fun TrackingScreen(
                 Toast.makeText(context, R.string.gpx_imported_successfully, Toast.LENGTH_SHORT).show()
                 selectedFile = destFile
             } catch (e: Exception) {
-                Toast.makeText(context, context.getString(R.string.failed_to_import_gpx, e.message ?: ""), Toast.LENGTH_LONG).show()
+                Toast.makeText(context, String.format(failedToImportGpxFormat, e.message ?: ""), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -506,7 +511,7 @@ fun TrackingScreen(
                                     Text(text = stringResource(R.string.tracking_schedule), style = MaterialTheme.typography.titleMedium)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     IconButton(onClick = {
-                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = context.getString(R.string.schedule_default_name)))
+                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
                                         scheduler.saveSchedules(context, ranges)
                                     }) {
                                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
@@ -2005,6 +2010,11 @@ fun TrackMap(
     val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE) }
     var hasCenteredInitially by remember { mutableStateOf(false) }
 
+    val scheduleStartMarkerTitleFormat = stringResource(R.string.schedule_start_marker_title)
+    val scheduleEndMarkerTitleFormat = stringResource(R.string.schedule_end_marker_title)
+    val startMarkerTitle = stringResource(R.string.start_marker_title)
+    val latestPositionMarkerTitle = stringResource(R.string.latest_position_marker_title)
+
     AndroidView(
         factory = { ctx ->
             MapView(ctx).apply {
@@ -2067,7 +2077,7 @@ fun TrackMap(
                 if (range.startLat != null && range.startLon != null) {
                     val center = GeoPoint(range.startLat, range.startLon)
                     val timeStr = String.format(Locale.US, "%02d:%02d", range.startHour, range.startMinute)
-                    val titleStr = context.getString(R.string.schedule_start_marker_title, range.name, timeStr)
+                    val titleStr = String.format(scheduleStartMarkerTitleFormat, range.name, timeStr)
                     val startMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.GREEN, range.name)
                     map.overlays.add(startMarker)
 
@@ -2086,7 +2096,7 @@ fun TrackMap(
                 if (range.endLat != null && range.endLon != null) {
                     val center = GeoPoint(range.endLat, range.endLon)
                     val timeStr = String.format(Locale.US, "%02d:%02d", range.endHour, range.endMinute)
-                    val titleStr = context.getString(R.string.schedule_end_marker_title, range.name, timeStr)
+                    val titleStr = String.format(scheduleEndMarkerTitleFormat, range.name, timeStr)
                     val endMarker = createNumberedMarker(context, map, center, titleStr, android.graphics.Color.RED, range.name)
                     map.overlays.add(endMarker)
 
@@ -2116,7 +2126,7 @@ fun TrackMap(
                 val startMarker = Marker(map).apply {
                     position = geoPoints.first()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = context.getString(R.string.start_marker_title)
+                    title = startMarkerTitle
                     icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
                         setTint(android.graphics.Color.GREEN)
                     }
@@ -2126,7 +2136,7 @@ fun TrackMap(
                 val endMarker = Marker(map).apply {
                     position = geoPoints.last()
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = context.getString(R.string.latest_position_marker_title)
+                    title = latestPositionMarkerTitle
                     icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
                         setTint(android.graphics.Color.RED)
                     }
