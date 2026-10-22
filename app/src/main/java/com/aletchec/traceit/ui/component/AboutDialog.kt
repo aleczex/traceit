@@ -41,6 +41,7 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
     val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
 
     val versionName = BuildConfig.VERSION_NAME
+    val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
 
     val appIconBitmap = if (isPreview) null else remember {
         try {
@@ -89,7 +90,7 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = stringResource(R.string.version_format, versionName),
+                    text = stringResource(R.string.version_variant_format, versionName, buildVariant),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))

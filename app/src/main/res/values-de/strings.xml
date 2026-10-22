@@ -21,6 +21,7 @@
     <string name="language_portuguese">Português</string>
     <string name="about_traceit">Über TraceIt</string>
     <string name="version_format">v%s</string>
+    <string name="version_variant_format">v%1$s (%2$s)</string>
     <string name="eula_html"><![CDATA[© 2026 Aletchec<br/><br/><a href="https://aletchec.com/traceit.html">Website besuchen</a><br/><a href="https://aletchec.com/eula.html">Endbenutzer-Lizenzvereinbarung (EULA)</a>]]></string>
     <string name="privacy_form_not_available">Datenschutzformular für Ihre Region nicht verfügbar.</string>
     <string name="cancel">Abbrechen</string>
