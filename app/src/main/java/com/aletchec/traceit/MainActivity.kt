@@ -1947,6 +1947,7 @@ fun SavedTracksList(
                     onClick = {
                         val file = fileToDelete!!
                         file.delete()
+                        files = gpxManager.getAllGpxFiles()
                         onDeleteFile(file)
                         fileToDelete = null
                     },
