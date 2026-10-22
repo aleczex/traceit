@@ -1661,6 +1661,10 @@ fun SavedTracksList(
         }
     }
 
+    LaunchedEffect(selectedFile) {
+        files = gpxManager.getAllGpxFiles()
+    }
+
     LaunchedEffect(isUnlocked) {
         while (true) {
             val unlocked = isDownloadUnlocked(context)
