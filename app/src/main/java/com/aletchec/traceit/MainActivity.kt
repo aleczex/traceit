@@ -1614,16 +1614,6 @@ fun isDownloadUnlocked(context: Context): Boolean {
     return System.currentTimeMillis() < unlockUntil
 }
 
-fun getDownloadUnlockRemainingTime(context: Context): String {
-    val prefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-    val unlockUntil = prefs.getLong("download_unlocked_until", 0L)
-    val diff = unlockUntil - System.currentTimeMillis()
-    if (diff <= 0) return "0h 0m"
-    val hours = diff / (3600 * 1000)
-    val minutes = (diff % (3600 * 1000)) / (60 * 1000)
-    return String.format(Locale.US, "%dh %02dm", hours, minutes)
-}
-
 fun setDownloadUnlockedForOneDay(context: Context) {
     val prefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
     val oneDayMillis = 24 * 60 * 60 * 1000L
@@ -1663,8 +1653,6 @@ fun SavedTracksList(
     var fileToDownload by remember { mutableStateOf<java.io.File?>(null) }
     var showAdDialog by remember { mutableStateOf(false) }
     var rewardedAd by remember { mutableStateOf<RewardedAd?>(null) }
-    var isUnlocked by remember { mutableStateOf(false) }
-    var remainingTimeStr by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
@@ -1673,10 +1661,6 @@ fun SavedTracksList(
 
     LaunchedEffect(Unit) {
         files = gpxManager.getAllGpxFiles()
-        isUnlocked = isDownloadUnlocked(context)
-        if (isUnlocked) {
-            remainingTimeStr = getDownloadUnlockRemainingTime(context)
-        }
         loadRewardedAd(context) { ad ->
             rewardedAd = ad
         }
@@ -1684,17 +1668,6 @@ fun SavedTracksList(
 
     LaunchedEffect(selectedFile) {
         files = gpxManager.getAllGpxFiles()
-    }
-
-    LaunchedEffect(isUnlocked) {
-        while (true) {
-            val unlocked = isDownloadUnlocked(context)
-            isUnlocked = unlocked
-            if (unlocked) {
-                remainingTimeStr = getDownloadUnlockRemainingTime(context)
-            }
-            delay(1000)
-        }
     }
 
     LaunchedEffect(selectedFile, files) {
@@ -1707,34 +1680,6 @@ fun SavedTracksList(
     }
 
     Column(modifier = modifier) {
-        val bannerBg = if (isUnlocked) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
-        val bannerTextColor = if (isUnlocked) Color(0xFF2E7D32) else Color(0xFFE65100)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(bannerBg)
-                .clickable {
-                    if (!isUnlocked) {
-                        fileToDownload = files.firstOrNull()
-                        showAdDialog = true
-                    }
-                }
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (isUnlocked) {
-                    stringResource(R.string.download_unlocked_status, remainingTimeStr)
-                } else {
-                    stringResource(R.string.download_locked_status)
-                },
-                color = bannerTextColor,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
         if (files.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.no_saved_tracks), style = MaterialTheme.typography.bodyMedium)
@@ -1917,8 +1862,6 @@ fun SavedTracksList(
                     if (rewardedAd != null && activity != null) {
                         rewardedAd?.show(activity) { _ ->
                             setDownloadUnlockedForOneDay(context)
-                            isUnlocked = true
-                            remainingTimeStr = getDownloadUnlockRemainingTime(context)
                             Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
                             showAdDialog = false
                             fileToDownload?.let { onExportFile(it) }
@@ -1931,8 +1874,6 @@ fun SavedTracksList(
                             if (ad != null && activity != null) {
                                 ad.show(activity) { _ ->
                                     setDownloadUnlockedForOneDay(context)
-                                    isUnlocked = true
-                                    remainingTimeStr = getDownloadUnlockRemainingTime(context)
                                     Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
                                     showAdDialog = false
                                     fileToDownload?.let { onExportFile(it) }
