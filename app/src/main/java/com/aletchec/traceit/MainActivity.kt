@@ -131,6 +131,9 @@ import org.osmdroid.views.overlay.Polygon
 import org.osmdroid.views.overlay.Polyline
 import java.util.Calendar
 import java.util.Locale
+import androidx.core.content.edit
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.graphics.createBitmap
 
 enum class PickTarget { START, END }
 
@@ -168,7 +171,7 @@ class MainActivity : AppCompatActivity() {
             val themeStr = prefs.getString("theme_mode", "SYSTEM") ?: "SYSTEM"
             var currentThemeMode by remember {
                 mutableStateOf(
-                    try { ThemeMode.valueOf(themeStr) } catch (e: Exception) { ThemeMode.SYSTEM }
+                    try { ThemeMode.valueOf(themeStr) } catch (_: Exception) { ThemeMode.SYSTEM }
                 )
             }
             var currentLanguage by remember { mutableStateOf(langTag) }
@@ -179,12 +182,12 @@ class MainActivity : AppCompatActivity() {
                         currentThemeMode = currentThemeMode,
                         onThemeSelected = { newMode ->
                             currentThemeMode = newMode
-                            prefs.edit().putString("theme_mode", newMode.name).apply()
+                            prefs.edit { putString("theme_mode", newMode.name) }
                         },
                         currentLanguage = currentLanguage,
                         onLanguageSelected = { newTag ->
                             currentLanguage = newTag
-                            prefs.edit().putString("app_language", newTag).apply()
+                            prefs.edit { putString("app_language", newTag) }
                             val localeList = if (newTag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(newTag)
                             AppCompatDelegate.setApplicationLocales(localeList)
                             recreate()
@@ -217,7 +220,7 @@ fun TrackingScreen(
     onThemeSelected: (ThemeMode) -> Unit,
     currentLanguage: String,
     onLanguageSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val scheduler = remember { TrackingScheduler() }
@@ -421,7 +424,7 @@ fun TrackingScreen(
                 gpxManager.getTrackPoints(file)
             }
             trackPoints = points
-            delay(5000)
+            delay(5000.milliseconds)
         }
     }
 
@@ -742,7 +745,7 @@ fun TrackingScreen(
                 FloatingActionButton(
                     onClick = {
                         if (canFitTrack && mapViewInstance != null) {
-                            val geoPoints = validTrackPoints.map { org.osmdroid.util.GeoPoint(it.latitude, it.longitude) }
+                            val geoPoints = validTrackPoints.map { GeoPoint(it.latitude, it.longitude) }
                             val boundingBox = org.osmdroid.util.BoundingBox.fromGeoPoints(geoPoints)
                             mapViewInstance?.zoomToBoundingBox(boundingBox, true, 50)
                         }
@@ -891,19 +894,24 @@ fun TrackingScreen(
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
-                                                val fileName = currentFile.name
-                                                val bmp = MapExportUtils.generateAnnotatedMapBitmap(
-                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                )
-                                                if (bmp != null) {
-                                                    val file = java.io.File(context.cacheDir, "track_map_${System.currentTimeMillis()}.png")
-                                                    java.io.FileOutputStream(file).use { out ->
-                                                        bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                try {
+                                                    val fileName = currentFile.name
+                                                    val bmp = MapExportUtils.generateAnnotatedMapBitmap(
+                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                    )
+                                                    if (bmp != null) {
+                                                        val file = java.io.File(context.cacheDir, "track_map_${System.currentTimeMillis()}.png")
+                                                        java.io.FileOutputStream(file).use { out ->
+                                                            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                                        }
+                                                        imageFileToExport = file
+                                                        createImageDocLauncher.launch(fileName.replace(".gpx", ".png"))
+                                                    } else {
+                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
                                                     }
-                                                    imageFileToExport = file
-                                                    createImageDocLauncher.launch(fileName.replace(".gpx", ".png"))
-                                                } else {
-                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                } finally {
+                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -913,15 +921,20 @@ fun TrackingScreen(
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
-                                                val fileName = currentFile.name
-                                                val pdfFile = MapExportUtils.generatePdf(
-                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                )
-                                                if (pdfFile != null) {
-                                                    pdfFileToExport = pdfFile
-                                                    createPdfDocLauncher.launch(fileName.replace(".gpx", ".pdf"))
-                                                } else {
-                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                try {
+                                                    val fileName = currentFile.name
+                                                    val pdfFile = MapExportUtils.generatePdf(
+                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                    )
+                                                    if (pdfFile != null) {
+                                                        pdfFileToExport = pdfFile
+                                                        createPdfDocLauncher.launch(fileName.replace(".gpx", ".pdf"))
+                                                    } else {
+                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } finally {
+                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -931,14 +944,19 @@ fun TrackingScreen(
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
-                                                val fileName = currentFile.name
-                                                val pdfFile = MapExportUtils.generatePdf(
-                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                )
-                                                if (pdfFile != null) {
-                                                    MapExportUtils.printDocument(context, pdfFile, fileName)
-                                                } else {
-                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                try {
+                                                    val fileName = currentFile.name
+                                                    val pdfFile = MapExportUtils.generatePdf(
+                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                    )
+                                                    if (pdfFile != null) {
+                                                        MapExportUtils.printDocument(context, pdfFile, fileName)
+                                                    } else {
+                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } finally {
+                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -1327,7 +1345,7 @@ fun ScheduleItem(
     onTogglePickStart: () -> Unit,
     onTogglePickEnd: () -> Unit,
     onSetStartRadius: (() -> Unit)? = null,
-    onSetEndRadius: (() -> Unit)? = null
+    onSetEndRadius: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     Row(
@@ -1471,7 +1489,7 @@ fun ScheduleSettingsDialog(
     onSetStartRadius: () -> Unit,
     onSetEndRadius: () -> Unit,
     onClearStart: () -> Unit,
-    onClearEnd: () -> Unit
+    onClearEnd: () -> Unit,
 ) {
     var nameInput by remember { mutableStateOf(range.name) }
     val context = LocalContext.current
@@ -1646,7 +1664,7 @@ fun SavedTracksList(
     onSelectFile: (java.io.File) -> Unit,
     onDeleteFile: (java.io.File) -> Unit,
     onExportFile: (java.io.File) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var files by remember { mutableStateOf(emptyList<java.io.File>()) }
     var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
@@ -1730,7 +1748,7 @@ fun SavedTracksList(
                                     } else {
                                         file.name
                                     }
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     file.name
                                 }
 
@@ -1932,15 +1950,15 @@ fun SavedTracksList(
 }
 
 fun createNumberedMarker(
-    context: android.content.Context,
+    context: Context,
     map: MapView,
     position: GeoPoint,
     title: String,
     tintColor: Int,
-    label: String
+    label: String,
 ): Marker {
     val size = 120
-    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(size, size)
     val canvas = android.graphics.Canvas(bitmap)
 
     val baseDrawable = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
@@ -1981,10 +1999,10 @@ fun TrackMap(
     onPointSelectedOnMap: (GeoPoint) -> Unit,
     onMapReady: (MapView) -> Unit = {},
     onMapMovingChanged: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", android.content.Context.MODE_PRIVATE) }
+    val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE) }
     var hasCenteredInitially by remember { mutableStateOf(false) }
 
     AndroidView(
@@ -2320,7 +2338,7 @@ fun TimePickerDialog(
     initialHour: Int,
     initialMinute: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int) -> Unit
+    onConfirm: (Int, Int) -> Unit,
 ) {
     val state = rememberTimePickerState(initialHour, initialMinute, is24Hour = true)
 
@@ -2345,7 +2363,7 @@ fun TimePickerDialog(
 private fun fetchAndCenterLocation(
     context: Context,
     fusedLocationClient: FusedLocationProviderClient,
-    mapView: MapView
+    mapView: MapView,
 ) {
     try {
         if (ActivityCompat.checkSelfPermission(

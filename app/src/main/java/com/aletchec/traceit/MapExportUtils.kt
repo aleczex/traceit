@@ -5,16 +5,128 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.pdf.PdfDocument
 import android.print.PrintAttributes
 import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import java.io.File
 import java.io.FileOutputStream
 
 object MapExportUtils {
+
+    private fun createCircleMarker(
+        context: Context,
+        mapView: MapView,
+        position: GeoPoint,
+        fillColor: Int,
+        strokeColor: Int,
+        title: String
+    ): Marker {
+        val size = 28
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val fillPaint = Paint().apply {
+            isAntiAlias = true
+            color = fillColor
+            style = Paint.Style.FILL
+        }
+        val strokePaint = Paint().apply {
+            isAntiAlias = true
+            color = strokeColor
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+        }
+
+        val radius = (size / 2f) - 2f
+        val cx = size / 2f
+        val cy = size / 2f
+
+        canvas.drawCircle(cx, cy, radius, fillPaint)
+        canvas.drawCircle(cx, cy, radius, strokePaint)
+
+        val drawable = BitmapDrawable(context.resources, bitmap)
+
+        return Marker(mapView).apply {
+            this.position = position
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            this.title = title
+            icon = drawable
+        }
+    }
+
+    fun prepareMapForExport(
+        context: Context,
+        mapView: MapView,
+        points: List<GpxManager.TrackPoint>
+    ): Runnable {
+        val previousOverlays = ArrayList(mapView.overlays)
+        val previousCenter = mapView.mapCenter
+        val previousZoom = mapView.zoomLevelDouble
+
+        val validPoints = points.filter { !it.isIgnored }
+        mapView.overlays.clear()
+
+        if (validPoints.isNotEmpty()) {
+            val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
+
+            val polyline = Polyline().apply {
+                setPoints(geoPoints)
+                outlinePaint.color = Color.BLUE
+                outlinePaint.strokeWidth = 5f
+            }
+            mapView.overlays.add(polyline)
+
+            val startMarker = createCircleMarker(
+                context,
+                mapView,
+                geoPoints.first(),
+                fillColor = Color.GREEN,
+                strokeColor = Color.WHITE,
+                title = context.getString(R.string.start_marker_title)
+            )
+            mapView.overlays.add(startMarker)
+
+            val endMarker = createCircleMarker(
+                context,
+                mapView,
+                geoPoints.last(),
+                fillColor = Color.RED,
+                strokeColor = Color.WHITE,
+                title = context.getString(R.string.latest_position_marker_title)
+            )
+            mapView.overlays.add(endMarker)
+
+            if (geoPoints.size == 1) {
+                mapView.controller.setCenter(geoPoints.first())
+                mapView.controller.setZoom(16.0)
+            } else {
+                val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
+                mapView.zoomToBoundingBox(boundingBox, false, 80)
+                if (mapView.zoomLevelDouble > 16.5) {
+                    mapView.controller.setZoom(16.5)
+                    mapView.controller.setCenter(boundingBox.centerWithDateLine)
+                }
+            }
+        }
+
+        mapView.invalidate()
+
+        return Runnable {
+            mapView.overlays.clear()
+            mapView.overlays.addAll(previousOverlays)
+            mapView.controller.setCenter(previousCenter)
+            mapView.controller.setZoom(previousZoom)
+            mapView.invalidate()
+        }
+    }
 
     fun captureMapView(mapView: MapView): Bitmap? {
         return try {
