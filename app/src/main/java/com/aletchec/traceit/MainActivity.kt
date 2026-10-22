@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
@@ -620,6 +621,8 @@ fun TrackingScreen(
             val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
             var isMapMoving by remember { mutableStateOf(false) }
+            val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
+            val canFitTrack = validTrackPoints.size >= 2
 
             TrackMap(
                 points = trackPoints,
@@ -735,6 +738,25 @@ fun TrackingScreen(
                     Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.zoom_out))
                 }
 
+                // Fit Track to Screen
+                FloatingActionButton(
+                    onClick = {
+                        if (canFitTrack && mapViewInstance != null) {
+                            val geoPoints = validTrackPoints.map { org.osmdroid.util.GeoPoint(it.latitude, it.longitude) }
+                            val boundingBox = org.osmdroid.util.BoundingBox.fromGeoPoints(geoPoints)
+                            mapViewInstance?.zoomToBoundingBox(boundingBox, true, 50)
+                        }
+                    },
+                    containerColor = if (canFitTrack) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                    contentColor = if (canFitTrack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ZoomOutMap,
+                        contentDescription = stringResource(R.string.fit_track_to_screen)
+                    )
+                }
+
                 // Crosshair (My Location)
                 FloatingActionButton(
                     onClick = {
@@ -819,7 +841,6 @@ fun TrackingScreen(
                 }
             }
 
-            val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
             if (validTrackPoints.isNotEmpty() && !isMapMoving) {
                 val currentFile = remember(selectedFile, ranges) {
                     selectedFile ?: gpxManager.getGpxFile(scheduler.getActiveRange(ranges))

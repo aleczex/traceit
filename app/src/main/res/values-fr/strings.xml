@@ -123,6 +123,7 @@
     <!-- Map &amp; Controls -->
     <string name="zoom_in">Zoom avant</string>
     <string name="zoom_out">Zoom arrière</string>
+    <string name="fit_track_to_screen">Ajuster la trace à l\'écran</string>
     <string name="show_current_gps_location">Afficher la position GPS actuelle</string>
     <string name="location_permission_required">L\'autorisation de localisation est requise pour afficher la position actuelle</string>
     <string name="loaded_track">Chargé: %s</string>

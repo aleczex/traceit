@@ -123,6 +123,7 @@
     <!-- Map &amp; Controls -->
     <string name="zoom_in">Aumentar zoom</string>
     <string name="zoom_out">Diminuir zoom</string>
+    <string name="fit_track_to_screen">Ajustar trilha à tela</string>
     <string name="show_current_gps_location">Mostrar posição GPS atual</string>
     <string name="location_permission_required">Permissão de localização necessária para mostrar a posição atual</string>
     <string name="loaded_track">Carregado: %s</string>

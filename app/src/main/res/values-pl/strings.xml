@@ -123,6 +123,7 @@
     <!-- Map &amp; Controls -->
     <string name="zoom_in">Przybliż</string>
     <string name="zoom_out">Oddal</string>
+    <string name="fit_track_to_screen">Dopasuj ślad do ekranu</string>
     <string name="show_current_gps_location">Pokaż bieżącą pozycję GPS</string>
     <string name="location_permission_required">Uprawnienie do lokalizacji jest wymagane, aby pokazać bieżącą pozycję</string>
     <string name="loaded_track">Wczytano: %s</string>

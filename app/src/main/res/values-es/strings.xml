@@ -123,6 +123,7 @@
     <!-- Map &amp; Controls -->
     <string name="zoom_in">Acercar</string>
     <string name="zoom_out">Alejar</string>
+    <string name="fit_track_to_screen">Ajustar ruta a la pantalla</string>
     <string name="show_current_gps_location">Mostrar posición GPS actual</string>
     <string name="location_permission_required">Se requiere permiso de ubicación para mostrar la posición actual</string>
     <string name="loaded_track">Cargado: %s</string>

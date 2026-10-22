@@ -123,6 +123,7 @@
     <!-- Map &amp; Controls -->
     <string name="zoom_in">Zoom In</string>
     <string name="zoom_out">Zoom Out</string>
+    <string name="fit_track_to_screen">Fit track to screen</string>
     <string name="show_current_gps_location">Show Current GPS Location</string>
     <string name="location_permission_required">Location permission required to show current position</string>
     <string name="loaded_track">Loaded: %s</string>
