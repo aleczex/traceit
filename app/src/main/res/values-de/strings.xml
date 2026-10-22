@@ -197,4 +197,12 @@
     <string name="import_gpx_file">GPX-Datei importieren</string>
     <string name="gpx_imported_successfully">GPX-Datei erfolgreich importiert</string>
     <string name="failed_to_import_gpx">Fehler beim Importieren der GPX-Datei: %s</string>
+
+    <!-- Map Export &amp; Print -->
+    <string name="export_map">Karte exportieren</string>
+    <string name="export_as_image">Karte als Bild exportieren (PNG)</string>
+    <string name="export_as_pdf">Karte als PDF exportieren</string>
+    <string name="print_map">Karte drucken</string>
+    <string name="export_success">Datei erfolgreich exportiert</string>
+    <string name="export_failed">Fehler beim Exportieren der Datei: %s</string>
 </resources>

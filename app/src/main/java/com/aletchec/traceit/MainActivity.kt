@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.HistoryEdu
@@ -289,6 +291,46 @@ fun TrackingScreen(
                     Toast.makeText(context, R.string.track_saved_successfully, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, context.getString(R.string.failed_to_save_track, e.message ?: ""), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    var imageFileToExport by remember { mutableStateOf<java.io.File?>(null) }
+    val createImageDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("image/png")
+    ) { uri ->
+        uri?.let { destinationUri ->
+            imageFileToExport?.let { srcFile ->
+                try {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
+                        srcFile.inputStream().use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, context.getString(R.string.export_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    var pdfFileToExport by remember { mutableStateOf<java.io.File?>(null) }
+    val createPdfDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        uri?.let { destinationUri ->
+            pdfFileToExport?.let { srcFile ->
+                try {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
+                        srcFile.inputStream().use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, context.getString(R.string.export_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -793,6 +835,7 @@ fun TrackingScreen(
                         .padding(12.dp)
                 ) {
                     Column {
+                        var showExportMenu by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -806,6 +849,73 @@ fun TrackingScreen(
                             if (selectedFile != null) {
                                 TextButton(onClick = { selectedFile = null }) {
                                     Text(stringResource(R.string.show_current))
+                                }
+                            }
+                            Box {
+                                IconButton(onClick = { showExportMenu = true }) {
+                                    Icon(Icons.Default.Print, contentDescription = stringResource(R.string.export_map))
+                                }
+                                DropdownMenu(
+                                    expanded = showExportMenu,
+                                    onDismissRequest = { showExportMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.export_as_image)) },
+                                        onClick = {
+                                            showExportMenu = false
+                                            mapViewInstance?.let { map ->
+                                                val fileName = currentFile.name
+                                                val bmp = MapExportUtils.generateAnnotatedMapBitmap(
+                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                )
+                                                if (bmp != null) {
+                                                    val file = java.io.File(context.cacheDir, "track_map_${System.currentTimeMillis()}.png")
+                                                    java.io.FileOutputStream(file).use { out ->
+                                                        bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                                    }
+                                                    imageFileToExport = file
+                                                    createImageDocLauncher.launch(fileName.replace(".gpx", ".png"))
+                                                } else {
+                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.export_as_pdf)) },
+                                        onClick = {
+                                            showExportMenu = false
+                                            mapViewInstance?.let { map ->
+                                                val fileName = currentFile.name
+                                                val pdfFile = MapExportUtils.generatePdf(
+                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                )
+                                                if (pdfFile != null) {
+                                                    pdfFileToExport = pdfFile
+                                                    createPdfDocLauncher.launch(fileName.replace(".gpx", ".pdf"))
+                                                } else {
+                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.print_map)) },
+                                        onClick = {
+                                            showExportMenu = false
+                                            mapViewInstance?.let { map ->
+                                                val fileName = currentFile.name
+                                                val pdfFile = MapExportUtils.generatePdf(
+                                                    context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                )
+                                                if (pdfFile != null) {
+                                                    MapExportUtils.printDocument(context, pdfFile, fileName)
+                                                } else {
+                                                    Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
