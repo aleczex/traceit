@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -618,6 +619,8 @@ fun TrackingScreen(
             var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
             val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+            var isMapMoving by remember { mutableStateOf(false) }
+
             TrackMap(
                 points = trackPoints,
                 ranges = ranges,
@@ -682,6 +685,9 @@ fun TrackingScreen(
                 },
                 onMapReady = { map ->
                     mapViewInstance = map
+                },
+                onMapMovingChanged = { moving ->
+                    isMapMoving = moving
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -814,7 +820,7 @@ fun TrackingScreen(
             }
 
             val validTrackPoints = remember(trackPoints) { trackPoints.filter { !it.isIgnored } }
-            if (validTrackPoints.isNotEmpty()) {
+            if (validTrackPoints.isNotEmpty() && !isMapMoving) {
                 val currentFile = remember(selectedFile, ranges) {
                     selectedFile ?: gpxManager.getGpxFile(scheduler.getActiveRange(ranges))
                 }
@@ -2007,6 +2013,7 @@ fun TrackMap(
     pickingScheduleIndex: Int,
     onPointSelectedOnMap: (GeoPoint) -> Unit,
     onMapReady: (MapView) -> Unit = {},
+    onMapMovingChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -2024,11 +2031,37 @@ fun TrackMap(
                 val savedZoom = sharedPrefs.getFloat("map_zoom_level", 16.0f).toDouble()
                 controller.setZoom(savedZoom)
 
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                val scrollRunnable = Runnable { onMapMovingChanged(false) }
+
+                setOnTouchListener { v, event ->
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                            handler.removeCallbacks(scrollRunnable)
+                            onMapMovingChanged(true)
+                        }
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            v.performClick()
+                            handler.removeCallbacks(scrollRunnable)
+                            handler.postDelayed(scrollRunnable, 300)
+                        }
+                    }
+                    false
+                }
+
                 addMapListener(object : MapListener {
-                    override fun onScroll(event: ScrollEvent?): Boolean = false
+                    override fun onScroll(event: ScrollEvent?): Boolean {
+                        handler.removeCallbacks(scrollRunnable)
+                        onMapMovingChanged(true)
+                        handler.postDelayed(scrollRunnable, 300)
+                        return false
+                    }
                     override fun onZoom(event: ZoomEvent?): Boolean {
                         val currentZoom = zoomLevelDouble.toFloat()
                         sharedPrefs.edit().putFloat("map_zoom_level", currentZoom).apply()
+                        handler.removeCallbacks(scrollRunnable)
+                        onMapMovingChanged(true)
+                        handler.postDelayed(scrollRunnable, 300)
                         return false
                     }
                 })
