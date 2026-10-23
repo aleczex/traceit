@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -92,14 +93,18 @@ import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
+import kotlinx.coroutines.Job
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -1661,6 +1666,124 @@ fun loadRewardedAd(context: Context, onAdLoaded: (RewardedAd?) -> Unit) {
     )
 }
 
+private data class ScrollbarData(
+    val scrollProgress: Float,
+    val thumbHeightFraction: Float,
+    val averageItemSize: Float,
+    val viewportHeight: Float
+)
+
+@Composable
+fun VerticalScrollbar(
+    listState: LazyListState,
+    totalItems: Int,
+    modifier: Modifier = Modifier
+) {
+    if (totalItems <= 0) return
+
+    val coroutineScope = rememberCoroutineScope()
+    var dragJob by remember { mutableStateOf<Job?>(null) }
+
+    val scrollbarData by remember(totalItems) {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItemsInfo = layoutInfo.visibleItemsInfo
+            if (visibleItemsInfo.isEmpty()) {
+                null
+            } else {
+                val totalSize = visibleItemsInfo.sumOf { it.size }
+                val averageItemSize = if (visibleItemsInfo.isNotEmpty()) totalSize.toFloat() / visibleItemsInfo.size else 1f
+                val viewportHeight = layoutInfo.viewportSize.height.toFloat()
+                val totalContentHeight = averageItemSize * totalItems
+
+                if (totalContentHeight <= viewportHeight) {
+                    null
+                } else {
+                    val firstVisibleIndex = listState.firstVisibleItemIndex
+                    val firstVisibleOffset = listState.firstVisibleItemScrollOffset.toFloat()
+                    val currentScrollOffset = firstVisibleIndex * averageItemSize + firstVisibleOffset
+                    val maxScrollOffset = (totalContentHeight - viewportHeight).coerceAtLeast(1f)
+                    val scrollProgress = (currentScrollOffset / maxScrollOffset).coerceIn(0f, 1f)
+                    val thumbHeightFraction = (viewportHeight / totalContentHeight).coerceIn(0.12f, 1f)
+
+                    ScrollbarData(
+                        scrollProgress = scrollProgress,
+                        thumbHeightFraction = thumbHeightFraction,
+                        averageItemSize = averageItemSize,
+                        viewportHeight = viewportHeight
+                    )
+                }
+            }
+        }
+    }
+
+    val stateData = scrollbarData ?: return
+
+    val currentTotalItems by rememberUpdatedState(totalItems)
+    val currentListState by rememberUpdatedState(listState)
+    val currentAverageItemSize by rememberUpdatedState(stateData.averageItemSize)
+    val currentViewportHeight by rememberUpdatedState(stateData.viewportHeight)
+
+    Box(
+        modifier = modifier
+            .width(24.dp)
+            .fillMaxHeight()
+            .padding(vertical = 8.dp)
+            .pointerInput(Unit) {
+                fun scrollToFraction(fraction: Float) {
+                    val clampedFraction = fraction.coerceIn(0f, 1f)
+                    val targetTotalContentHeight = currentAverageItemSize * currentTotalItems
+                    val targetMaxOffset = (targetTotalContentHeight - currentViewportHeight).coerceAtLeast(1f)
+                    val targetScrollOffset = clampedFraction * targetMaxOffset
+
+                    val targetIndex = (targetScrollOffset / currentAverageItemSize)
+                        .toInt()
+                        .coerceIn(0, (currentTotalItems - 1).coerceAtLeast(0))
+                    val targetItemOffset = (targetScrollOffset - targetIndex * currentAverageItemSize)
+                        .toInt()
+                        .coerceAtLeast(0)
+
+                    dragJob?.cancel()
+                    dragJob = coroutineScope.launch {
+                        currentListState.scrollToItem(targetIndex, targetItemOffset)
+                    }
+                }
+
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        val trackHeight = size.height.toFloat()
+                        if (trackHeight > 0f) {
+                            scrollToFraction(offset.y / trackHeight)
+                        }
+                    },
+                    onVerticalDrag = { change, _ ->
+                        change.consume()
+                        val trackHeight = size.height.toFloat()
+                        if (trackHeight > 0f) {
+                            scrollToFraction(change.position.y / trackHeight)
+                        }
+                    }
+                )
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(stateData.thumbHeightFraction)
+                .align(BiasAlignment(0f, stateData.scrollProgress * 2f - 1f))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+        )
+    }
+}
+
 @Composable
 fun SavedTracksList(
     gpxManager: GpxManager,
@@ -1680,7 +1803,6 @@ fun SavedTracksList(
     val context = LocalContext.current
     val ranges = remember { scheduler.loadSchedules(context) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         files = gpxManager.getAllGpxFiles()
@@ -1809,67 +1931,11 @@ fun SavedTracksList(
                     }
                 }
 
-                // Interactive Vertical Scrollbar
-                val totalItems = files.size
-                if (totalItems > 0) {
-                    val firstVisibleItemIndex = listState.firstVisibleItemIndex
-                    val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
-                    val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
-                        firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
-                    } else {
-                        0f
-                    }.coerceIn(0f, 1f)
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .width(24.dp)
-                            .fillMaxHeight()
-                            .padding(vertical = 8.dp)
-                            .pointerInput(totalItems, visibleItemCount) {
-                                detectVerticalDragGestures(
-                                    onDragStart = { offset ->
-                                        val trackHeight = size.height.toFloat()
-                                        if (trackHeight > 0f) {
-                                            val tapFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
-                                            val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                            coroutineScope.launch {
-                                                listState.scrollToItem(targetIndex)
-                                            }
-                                        }
-                                    },
-                                    onVerticalDrag = { change, _ ->
-                                        change.consume()
-                                        val trackHeight = size.height.toFloat()
-                                        if (trackHeight > 0f) {
-                                            val dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
-                                            val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                            coroutineScope.launch {
-                                                listState.scrollToItem(targetIndex)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .width(4.dp)
-                                .fillMaxHeight()
-                                .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                        )
-
-                        val thumbHeightFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(thumbHeightFraction)
-                                .align(androidx.compose.ui.BiasAlignment(0f, scrollProgress * 2f - 1f))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
-                        )
-                    }
-                }
+                VerticalScrollbar(
+                    listState = listState,
+                    totalItems = files.size,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
         }
     }
@@ -2241,67 +2307,11 @@ fun TrackPointsList(points: List<GpxManager.TrackPoint>, gpxManager: GpxManager,
             }
         }
 
-        // Interactive Vertical Scrollbar
-        val totalItems = points.size
-        if (totalItems > 0) {
-            val firstVisibleItemIndex = listState.firstVisibleItemIndex
-            val visibleItemCount = listState.layoutInfo.visibleItemsInfo.size
-            val scrollProgress = if (totalItems > visibleItemCount && totalItems > 1) {
-                firstVisibleItemIndex.toFloat() / (totalItems - visibleItemCount).toFloat()
-            } else {
-                0f
-            }.coerceIn(0f, 1f)
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(24.dp)
-                    .fillMaxHeight()
-                    .padding(vertical = 8.dp)
-                    .pointerInput(totalItems, visibleItemCount) {
-                        detectVerticalDragGestures(
-                            onDragStart = { offset ->
-                                val trackHeight = size.height.toFloat()
-                                if (trackHeight > 0f) {
-                                    val tapFraction = (offset.y / trackHeight).coerceIn(0f, 1f)
-                                    val targetIndex = (tapFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                    coroutineScope.launch {
-                                        listState.scrollToItem(targetIndex)
-                                    }
-                                }
-                            },
-                            onVerticalDrag = { change, _ ->
-                                change.consume()
-                                val trackHeight = size.height.toFloat()
-                                if (trackHeight > 0f) {
-                                    val dragFraction = (change.position.y / trackHeight).coerceIn(0f, 1f)
-                                    val targetIndex = (dragFraction * (totalItems - visibleItemCount)).toInt().coerceIn(0, totalItems - 1)
-                                    coroutineScope.launch {
-                                        listState.scrollToItem(targetIndex)
-                                    }
-                                }
-                            }
-                        )
-                    }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                )
-
-                val thumbHeightFraction = (visibleItemCount.toFloat() / totalItems.toFloat()).coerceIn(0.15f, 1f)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(thumbHeightFraction)
-                        .align(androidx.compose.ui.BiasAlignment(0f, scrollProgress * 2f - 1f))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
-                )
-            }
-        }
+        VerticalScrollbar(
+            listState = listState,
+            totalItems = points.size,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
 
         // Top and Bottom Buttons
         val context = LocalContext.current
