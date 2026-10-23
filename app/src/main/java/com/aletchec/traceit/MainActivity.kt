@@ -111,6 +111,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -1834,6 +1835,8 @@ fun SavedTracksList(
     var rewardedAd by remember { mutableStateOf<RewardedAd?>(null) }
 
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isCompactLandscape = configuration.orientation == ResConfiguration.ORIENTATION_LANDSCAPE && configuration.screenWidthDp < 600
     val ranges = remember { scheduler.loadSchedules(context) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
@@ -1878,7 +1881,13 @@ fun SavedTracksList(
                         val isLoaded = file == selectedFile
                         val isActiveFile = file.absolutePath == activeFile.absolutePath
 
-                        Row(
+                        val actionRowModifier = if (isCompactLandscape) {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier
+                        }
+
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
@@ -1890,75 +1899,91 @@ fun SavedTracksList(
                                     },
                                     RoundedCornerShape(8.dp)
                                 )
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                val name = file.name.replace("track_", "").replace(".gpx", "")
-                                val formattedName = try {
-                                    val parts = name.split("_")
-                                    if (parts.size == 3) {
-                                        val dateStr = parts[0]
-                                        val startStr = parts[1]
-                                        val endStr = parts[2]
-                                        "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
-                                    } else if (parts.size == 1 && parts[0].length == 8) {
-                                        val dateStr = parts[0]
-                                        "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
-                                    } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val name = file.name.replace("track_", "").replace(".gpx", "")
+                                    val formattedName = try {
+                                        val parts = name.split("_")
+                                        if (parts.size == 3) {
+                                            val dateStr = parts[0]
+                                            val startStr = parts[1]
+                                            val endStr = parts[2]
+                                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)} (${startStr.substring(0, 2)}:${startStr.substring(2, 4)} - ${endStr.substring(0, 2)}:${endStr.substring(2, 4)})"
+                                        } else if (parts.size == 1 && parts[0].length == 8) {
+                                            val dateStr = parts[0]
+                                            "${dateStr.substring(6, 8)}.${dateStr.substring(4, 6)}.${dateStr.substring(0, 4)}"
+                                        } else {
+                                            file.name
+                                        }
+                                    } catch (_: Exception) {
                                         file.name
                                     }
-                                } catch (_: Exception) {
-                                    file.name
+
+                                    Text(
+                                        text = formattedName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = when {
+                                            isActiveFile -> MaterialTheme.colorScheme.error
+                                            isLoaded -> MaterialTheme.colorScheme.primary
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val stats = remember(file) { gpxManager.getTrackStatistics(file) }
+                                    Text(
+                                        text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.file_size_format, file.length() / 1024.0),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(if (isCompactLandscape) 8.dp else 0.dp))
+
+                            Row(
+                                modifier = actionRowModifier
+                                    .fillMaxWidth(),
+                                horizontalArrangement = if (isCompactLandscape) Arrangement.SpaceBetween else Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isCompactLandscape) {
+                                    Spacer(modifier = Modifier.width(0.dp))
+                                }
+                                Button(onClick = {
+                                    onSelectFile(file)
+                                }, modifier = if (isCompactLandscape) Modifier.weight(1f) else Modifier) {
+                                    Text(stringResource(R.string.load))
                                 }
 
-                                Text(
-                                    text = formattedName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = when {
-                                        isActiveFile -> MaterialTheme.colorScheme.error
-                                        isLoaded -> MaterialTheme.colorScheme.primary
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                IconButton(onClick = {
+                                    if (isDownloadUnlocked(context)) {
+                                        onExportFile(file)
+                                    } else {
+                                        fileToDownload = file
+                                        showAdDialog = true
                                     }
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                val stats = remember(file) { gpxManager.getTrackStatistics(file) }
-                                Text(
-                                    text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                                Text(
-                                    text = stringResource(R.string.file_size_format, file.length() / 1024.0),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            Button(onClick = {
-                                onSelectFile(file)
-                            }) {
-                                Text(stringResource(R.string.load))
-                            }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
-                            IconButton(onClick = {
-                                if (isDownloadUnlocked(context)) {
-                                    onExportFile(file)
-                                } else {
-                                    fileToDownload = file
-                                    showAdDialog = true
+                                }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
+                                    Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
                                 }
-                            }) {
-                                Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
-                            }
 
-                            Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
 
-                            IconButton(onClick = {
-                                fileToDelete = file
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                                IconButton(onClick = {
+                                    fileToDelete = file
+                                }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_track_file))
+                                }
                             }
                         }
                     }
