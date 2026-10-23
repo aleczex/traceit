@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration as ResConfiguration
 import android.os.Build
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -99,6 +100,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -149,27 +151,15 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("tracking_prefs", MODE_PRIVATE)
         val langTag = prefs.getString("app_language", "") ?: ""
         if (langTag.isNotEmpty()) {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langTag))
+            val currentLocales = AppCompatDelegate.getApplicationLocales()
+            if (currentLocales.toLanguageTags() != langTag) {
+                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langTag))
+            }
         }
 
         // osmdroid configuration
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = packageName
-
-        // Initialize Mobile Ads SDK
-        MobileAds.initialize(this) {}
-
-        // UMP Consent Request
-        val params = ConsentRequestParameters.Builder().build()
-        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
-        consentInformation.requestConsentInfoUpdate(
-            this,
-            params,
-            {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
-            },
-            { _ -> }
-        )
 
         enableEdgeToEdge()
         setContent {
@@ -195,13 +185,27 @@ class MainActivity : AppCompatActivity() {
                             prefs.edit { putString("app_language", newTag) }
                             val localeList = if (newTag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(newTag)
                             AppCompatDelegate.setApplicationLocales(localeList)
-                            recreate()
                         },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
         }
+
+        // Initialize Mobile Ads SDK and request UMP Consent after setContent ensures content view exists
+        MobileAds.initialize(this) {}
+
+        // UMP Consent Request
+        val params = ConsentRequestParameters.Builder().build()
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            params,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
+            },
+            { _ -> }
+        )
     }
 }
 
@@ -281,10 +285,11 @@ fun TrackingScreen(
         }
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var isTrackingNow by remember { mutableStateOf(false) }
     var trackPoints by remember { mutableStateOf(emptyList<GpxManager.TrackPoint>()) }
-    var selectedFile by remember { mutableStateOf<java.io.File?>(null) }
+    var selectedFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedFile = remember(selectedFilePath) { selectedFilePath?.let { java.io.File(it) } }
     var fileToExport by remember { mutableStateOf<java.io.File?>(null) }
 
     val failedToSaveTrackFormat = stringResource(R.string.failed_to_save_track)
@@ -379,7 +384,7 @@ fun TrackingScreen(
                     }
                 }
                 Toast.makeText(context, R.string.gpx_imported_successfully, Toast.LENGTH_SHORT).show()
-                selectedFile = destFile
+                selectedFilePath = destFile.absolutePath
             } catch (e: Exception) {
                 Toast.makeText(context, String.format(failedToImportGpxFormat, e.message ?: ""), Toast.LENGTH_LONG).show()
             }
@@ -438,198 +443,207 @@ fun TrackingScreen(
         }
     }
 
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = 180.dp,
-        sheetContent = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.85f)
-                    .padding(horizontal = 16.dp)
-            ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == ResConfiguration.ORIENTATION_LANDSCAPE
+
+    val menuContent: @Composable (Modifier) -> Unit = { menuModifier ->
+        Column(
+            modifier = menuModifier.padding(horizontal = 16.dp)
+        ) {
+            if (!isLandscape) {
                 Text(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (isTrackingNow) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
-                        )
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isTrackingNow) stringResource(R.string.tracking_active) else stringResource(R.string.outside_schedule),
-                        color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
-                        style = MaterialTheme.typography.titleSmall
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isTrackingNow) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
                     )
-                }
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isTrackingNow) stringResource(R.string.tracking_active) else stringResource(R.string.outside_schedule),
+                    color = if (isTrackingNow) Color(0xFF2E7D32) else Color(0xFF757575),
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                TabRow(selectedTabIndex = selectedTab, modifier = Modifier.fillMaxWidth()) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = {
-                            selectedTab = 0
-                        },
-                        text = { Text(stringResource(R.string.tab_schedules), maxLines = 1, softWrap = false) }
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = {
-                            selectedTab = 1
+            TabRow(selectedTabIndex = selectedTab, modifier = Modifier.fillMaxWidth()) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text(stringResource(R.string.tab_schedules), maxLines = 1, softWrap = false) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = {
+                        selectedTab = 1
+                        if (!isLandscape) {
                             scope.launch { scaffoldState.bottomSheetState.expand() }
-                        },
-                        text = { Text(stringResource(R.string.tab_points), maxLines = 1, softWrap = false) }
-                    )
-                    Tab(
-                        selected = selectedTab == 2,
-                        onClick = {
-                            selectedTab = 2
+                        }
+                    },
+                    text = { Text(stringResource(R.string.tab_points), maxLines = 1, softWrap = false) }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = {
+                        selectedTab = 2
+                        if (!isLandscape) {
                             scope.launch { scaffoldState.bottomSheetState.expand() }
-                        },
-                        text = { Text(stringResource(R.string.tab_saved), maxLines = 1, softWrap = false) }
-                    )
-                }
+                        }
+                    },
+                    text = { Text(stringResource(R.string.tab_saved), maxLines = 1, softWrap = false) }
+                )
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    when (selectedTab) {
-                        0 -> {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(text = stringResource(R.string.tracking_schedule), style = MaterialTheme.typography.titleMedium)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(onClick = {
-                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
-                                        scheduler.saveSchedules(context, ranges)
-                                    }) {
-                                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
-                                    }
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    TextButton(onClick = {
-                                        val file = selectedFile ?: run {
-                                            val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
-                                            gpxManager.getGpxFile(activeRange)
-                                        }
-                                        trackPoints = gpxManager.getTrackPoints(file)
-                                    }) {
-                                        Text(stringResource(R.string.refresh))
-                                    }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                when (selectedTab) {
+                    0 -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = stringResource(R.string.tracking_schedule), style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(onClick = {
+                                    ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
+                                    scheduler.saveSchedules(context, ranges)
+                                }) {
+                                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
                                 }
+                                Spacer(modifier = Modifier.weight(1f))
+                                TextButton(onClick = {
+                                    val file = selectedFile ?: run {
+                                        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
+                                        gpxManager.getGpxFile(activeRange)
+                                    }
+                                    trackPoints = gpxManager.getTrackPoints(file)
+                                }) {
+                                    Text(stringResource(R.string.refresh))
+                                }
+                            }
 
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                ) {
-                                    itemsIndexed(ranges) { index, range ->
-                                        ScheduleItem(
-                                            range = range,
-                                            isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
-                                            isPickingEnd = pickingScheduleIndex == index && pickTarget == PickTarget.END,
-                                            onOpenSettings = {
-                                                editingSettingsScheduleIndex = index
-                                                showSettingsDialog = true
-                                            },
-                                            onTogglePickStart = {
-                                                if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
-                                                    pickingScheduleIndex = -1
-                                                } else {
-                                                    pickingScheduleIndex = index
-                                                    pickTarget = PickTarget.START
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) {
+                                itemsIndexed(ranges) { index, range ->
+                                    ScheduleItem(
+                                        range = range,
+                                        isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
+                                        isPickingEnd = pickingScheduleIndex == index && pickTarget == PickTarget.END,
+                                        onOpenSettings = {
+                                            editingSettingsScheduleIndex = index
+                                            showSettingsDialog = true
+                                        },
+                                        onTogglePickStart = {
+                                            if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
+                                                pickingScheduleIndex = -1
+                                            } else {
+                                                pickingScheduleIndex = index
+                                                pickTarget = PickTarget.START
+                                                if (!isLandscape) {
                                                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                                                 }
-                                            },
-                                            onTogglePickEnd = {
-                                                if (pickingScheduleIndex == index && pickTarget == PickTarget.END) {
-                                                    pickingScheduleIndex = -1
-                                                } else {
-                                                    pickingScheduleIndex = index
-                                                    pickTarget = PickTarget.END
-                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                                                }
-                                            },
-                                            onSetStartRadius = {
-                                                editingRadiusScheduleIndex = index
-                                                editingRadiusTarget = PickTarget.START
-                                                showRadiusDialog = true
-                                            },
-                                            onSetEndRadius = {
-                                                editingRadiusScheduleIndex = index
-                                                editingRadiusTarget = PickTarget.END
-                                                showRadiusDialog = true
                                             }
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = if (selectedFile != null) {
-                                        stringResource(R.string.viewing_track, selectedFile?.name?.replace("track_", "")?.replace(".gpx", "") ?: "")
-                                    } else {
-                                        val activeRange = scheduler.getActiveRange(ranges)
-                                        if (activeRange != null) {
-                                            stringResource(R.string.active_schedule_format, activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
-                                        } else {
-                                            stringResource(R.string.no_active_schedule)
+                                        },
+                                        onTogglePickEnd = {
+                                            if (pickingScheduleIndex == index && pickTarget == PickTarget.END) {
+                                                pickingScheduleIndex = -1
+                                            } else {
+                                                pickingScheduleIndex = index
+                                                pickTarget = PickTarget.END
+                                                if (!isLandscape) {
+                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                                }
+                                            }
+                                        },
+                                        onSetStartRadius = {
+                                            editingRadiusScheduleIndex = index
+                                            editingRadiusTarget = PickTarget.START
+                                            showRadiusDialog = true
+                                        },
+                                        onSetEndRadius = {
+                                            editingRadiusScheduleIndex = index
+                                            editingRadiusTarget = PickTarget.END
+                                            showRadiusDialog = true
                                         }
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                                if (selectedFile != null) {
-                                    TextButton(onClick = { selectedFile = null }) {
-                                        Text(stringResource(R.string.show_current_active_track))
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = if (selectedFile != null) {
+                                    stringResource(R.string.viewing_track, selectedFile?.name?.replace("track_", "")?.replace(".gpx", "") ?: "")
+                                } else {
+                                    val activeRange = scheduler.getActiveRange(ranges)
+                                    if (activeRange != null) {
+                                        stringResource(R.string.active_schedule_format, activeRange.startHour, activeRange.startMinute, activeRange.endHour, activeRange.endMinute)
+                                    } else {
+                                        stringResource(R.string.no_active_schedule)
                                     }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            if (selectedFile != null) {
+                                TextButton(onClick = { selectedFilePath = null }) {
+                                    Text(stringResource(R.string.show_current_active_track))
                                 }
                             }
                         }
-                        1 -> TrackPointsList(points = trackPoints, gpxManager = gpxManager, modifier = Modifier.fillMaxSize())
-                        2 -> SavedTracksList(
-                            gpxManager = gpxManager,
-                            scheduler = scheduler,
-                            selectedFile = selectedFile,
-                            onSelectFile = { file ->
-                                selectedFile = file
-                                scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                            },
-                            onDeleteFile = { file ->
-                                if (selectedFile == file) {
-                                    selectedFile = null
-                                }
-                            },
-                            onExportFile = { file ->
-                                fileToExport = file
-                                createDocumentLauncher.launch(file.name)
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
                     }
+                    1 -> TrackPointsList(points = trackPoints, gpxManager = gpxManager, modifier = Modifier.fillMaxSize())
+                    2 -> SavedTracksList(
+                        gpxManager = gpxManager,
+                        scheduler = scheduler,
+                        selectedFile = selectedFile,
+                        onSelectFile = { file ->
+                            selectedFilePath = file.absolutePath
+                            if (!isLandscape) {
+                                scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                            }
+                        },
+                        onDeleteFile = { file ->
+                            if (selectedFile == file) {
+                                selectedFilePath = null
+                            }
+                        },
+                        onExportFile = { file ->
+                            fileToExport = file
+                            createDocumentLauncher.launch(file.name)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-                Spacer(modifier = Modifier.height(32.dp))
             }
-        },
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            Spacer(modifier = Modifier.height(if (isLandscape) 16.dp else 32.dp))
+        }
+    }
+
+    val mapContent: @Composable (Modifier) -> Unit = { mapModifier ->
+        Box(modifier = mapModifier) {
             var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
             val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
@@ -641,6 +655,7 @@ fun TrackingScreen(
                 points = trackPoints,
                 ranges = ranges,
                 pickingScheduleIndex = pickingScheduleIndex,
+                selectedFilePath = selectedFilePath,
                 onPointSelectedOnMap = { point ->
                     if (pickingScheduleIndex in ranges.indices) {
                         val targetIndex = pickingScheduleIndex
@@ -887,7 +902,7 @@ fun TrackingScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             if (selectedFile != null) {
-                                TextButton(onClick = { selectedFile = null }) {
+                                TextButton(onClick = { selectedFilePath = null }) {
                                     Text(stringResource(R.string.show_current))
                                 }
                             }
@@ -1024,6 +1039,24 @@ fun TrackingScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (isLandscape) {
+        Row(modifier = modifier.fillMaxSize()) {
+            mapContent(Modifier.weight(2f).fillMaxHeight())
+            menuContent(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surface))
+        }
+    } else {
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = 180.dp,
+            sheetContent = {
+                menuContent(Modifier.fillMaxWidth().fillMaxHeight(0.85f))
+            },
+            modifier = modifier.fillMaxSize()
+        ) { paddingValues ->
+            mapContent(Modifier.padding(paddingValues).fillMaxSize())
         }
     }
 
@@ -2067,6 +2100,7 @@ fun TrackMap(
     points: List<GpxManager.TrackPoint>,
     ranges: List<TrackingScheduler.TimeRange>,
     pickingScheduleIndex: Int,
+    selectedFilePath: String? = null,
     onPointSelectedOnMap: (GeoPoint) -> Unit,
     onMapReady: (MapView) -> Unit = {},
     onMapMovingChanged: (Boolean) -> Unit = {},
@@ -2074,7 +2108,11 @@ fun TrackMap(
 ) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE) }
-    var hasCenteredInitially by remember { mutableStateOf(false) }
+
+    var savedCenterLat by rememberSaveable(selectedFilePath) { mutableStateOf<Double?>(null) }
+    var savedCenterLon by rememberSaveable(selectedFilePath) { mutableStateOf<Double?>(null) }
+    var savedZoom by rememberSaveable { mutableStateOf(sharedPrefs.getFloat("map_zoom_level", 16.0f).toDouble()) }
+    var hasCenteredInitially by rememberSaveable(selectedFilePath) { mutableStateOf(false) }
 
     val scheduleStartMarkerTitleFormat = stringResource(R.string.schedule_start_marker_title)
     val scheduleEndMarkerTitleFormat = stringResource(R.string.schedule_end_marker_title)
@@ -2089,8 +2127,14 @@ fun TrackMap(
                 setMultiTouchControls(true)
                 zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
 
-                val savedZoom = sharedPrefs.getFloat("map_zoom_level", 16.0f).toDouble()
                 controller.setZoom(savedZoom)
+                if (savedCenterLat != null && savedCenterLon != null) {
+                    val initialCenter = GeoPoint(savedCenterLat!!, savedCenterLon!!)
+                    controller.setCenter(initialCenter)
+                    post {
+                        controller.setCenter(initialCenter)
+                    }
+                }
 
                 val handler = android.os.Handler(android.os.Looper.getMainLooper())
                 val scrollRunnable = Runnable { onMapMovingChanged(false) }
@@ -2112,14 +2156,25 @@ fun TrackMap(
 
                 addMapListener(object : MapListener {
                     override fun onScroll(event: ScrollEvent?): Boolean {
+                        val center = mapCenter
+                        if (center != null) {
+                            savedCenterLat = center.latitude
+                            savedCenterLon = center.longitude
+                        }
                         handler.removeCallbacks(scrollRunnable)
                         onMapMovingChanged(true)
                         handler.postDelayed(scrollRunnable, 300)
                         return false
                     }
                     override fun onZoom(event: ZoomEvent?): Boolean {
-                        val currentZoom = zoomLevelDouble.toFloat()
-                        sharedPrefs.edit().putFloat("map_zoom_level", currentZoom).apply()
+                        val currentZoom = zoomLevelDouble
+                        savedZoom = currentZoom
+                        sharedPrefs.edit().putFloat("map_zoom_level", currentZoom.toFloat()).apply()
+                        val center = mapCenter
+                        if (center != null) {
+                            savedCenterLat = center.latitude
+                            savedCenterLon = center.longitude
+                        }
                         handler.removeCallbacks(scrollRunnable)
                         onMapMovingChanged(true)
                         handler.postDelayed(scrollRunnable, 300)
@@ -2211,8 +2266,11 @@ fun TrackMap(
 
                 if (!hasCenteredInitially) {
                     hasCenteredInitially = true
+                    val lastPoint = geoPoints.last()
+                    savedCenterLat = lastPoint.latitude
+                    savedCenterLon = lastPoint.longitude
                     map.post {
-                        map.controller.setCenter(geoPoints.last())
+                        map.controller.setCenter(lastPoint)
                     }
                 }
             }
