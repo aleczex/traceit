@@ -15,3 +15,4 @@
 local.properties
 /.artifacts/*
 /app/prod/release/
+/.idea/androidTestResultsUserPreferences.xml

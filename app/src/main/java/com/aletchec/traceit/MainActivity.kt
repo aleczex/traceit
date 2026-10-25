@@ -113,6 +113,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -455,7 +456,9 @@ fun TrackingScreen(
                 Text(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .testTag("app_title")
                 )
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -818,17 +821,20 @@ fun TrackingScreen(
                     onClick = { showMenuDropdown = true },
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag("menu_button")
                 ) {
                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu))
                 }
 
                 DropdownMenu(
                     expanded = showMenuDropdown,
-                    onDismissRequest = { showMenuDropdown = false }
+                    onDismissRequest = { showMenuDropdown = false },
+                    modifier = Modifier.testTag("menu_dropdown")
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.options)) },
+                        text = { Text(stringResource(R.string.options), modifier = Modifier.testTag("menu_option_settings")) },
                         leadingIcon = {
                             Icon(Icons.Default.Settings, contentDescription = null)
                         },
@@ -838,7 +844,7 @@ fun TrackingScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.privacy_options)) },
+                        text = { Text(stringResource(R.string.privacy_options), modifier = Modifier.testTag("menu_option_privacy")) },
                         leadingIcon = {
                             Icon(Icons.Rounded.PrivacyTip, contentDescription = null)
                         },
@@ -848,7 +854,7 @@ fun TrackingScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.open_source_licenses)) },
+                        text = { Text(stringResource(R.string.open_source_licenses), modifier = Modifier.testTag("menu_option_licenses")) },
                         leadingIcon = {
                             Icon(Icons.Rounded.HistoryEdu, contentDescription = null)
                         },
@@ -858,7 +864,7 @@ fun TrackingScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.about)) },
+                        text = { Text(stringResource(R.string.about), modifier = Modifier.testTag("menu_option_about")) },
                         leadingIcon = {
                             Icon(Icons.Default.Info, contentDescription = null)
                         },
