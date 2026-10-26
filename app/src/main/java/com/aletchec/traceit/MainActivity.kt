@@ -544,10 +544,13 @@ fun TrackingScreen(
                             ) {
                                 Text(text = stringResource(R.string.tracking_schedule), style = MaterialTheme.typography.titleMedium)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(onClick = {
-                                    ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
-                                    scheduler.saveSchedules(context, ranges)
-                                }) {
+                                IconButton(
+                                    onClick = {
+                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
+                                        scheduler.saveSchedules(context, ranges)
+                                    },
+                                    modifier = Modifier.testTag("add_schedule_button")
+                                ) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
                                 }
                                 Spacer(modifier = Modifier.weight(1f))

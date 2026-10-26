@@ -19,4 +19,4 @@
 ## 📝 Rules & Guidelines
 1. **Idiomatic Code**: Use modern Kotlin and Jetpack Compose best practices.
 2. **Background Tracking**: Preserve foreground service notifications and wake locks.
-3. **Commit Messages**: Always generate and provide a concise Git commit message after completing any code change.
+3. **Commit Messages**: Always generate and provide a concise Git commit message after completing any code change with prefixes: chore/feat/fix.

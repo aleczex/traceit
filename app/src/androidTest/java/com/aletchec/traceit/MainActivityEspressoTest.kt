@@ -10,9 +10,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,6 +34,12 @@ class MainActivityEspressoTest {
     @get:Rule
     val composeTestRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> =
         createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun setUp() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        context.getSharedPreferences("tracking_prefs", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+    }
 
     @Test
     fun activityLaunches() {
@@ -61,10 +70,12 @@ class MainActivityEspressoTest {
 
     @Test
     fun addNewScheduleTest() {
-        val addScheduleDesc = composeTestRule.activity.getString(R.string.add_schedule)
+        try {
+            composeTestRule.onNodeWithTag("app_title").performTouchInput { swipeUp() }
+        } catch (_: Exception) {}
 
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
-        composeTestRule.onNodeWithContentDescription(addScheduleDesc).performClick()
+        composeTestRule.onNodeWithTag("add_schedule_button").performClick()
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(2)
     }
 }
