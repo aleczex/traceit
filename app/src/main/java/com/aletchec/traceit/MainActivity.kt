@@ -153,9 +153,17 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("tracking_prefs", MODE_PRIVATE)
         val langTag = prefs.getString("app_language", "") ?: ""
         if (langTag.isNotEmpty()) {
-            val currentLocales = AppCompatDelegate.getApplicationLocales()
-            if (currentLocales.toLanguageTags() != langTag) {
-                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langTag))
+            val isTest = try {
+                Class.forName("androidx.test.espresso.Espresso")
+                true
+            } catch (_: ClassNotFoundException) {
+                false
+            }
+            if (!isTest) {
+                val currentLocales = AppCompatDelegate.getApplicationLocales()
+                if (currentLocales.toLanguageTags() != langTag) {
+                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langTag))
+                }
             }
         }
 
@@ -194,20 +202,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Initialize Mobile Ads SDK and request UMP Consent after setContent ensures content view exists
-        MobileAds.initialize(this) {}
+        // Initialize Mobile Ads SDK and request UMP Consent after setContent ensures content view exists, skipping in unit/instrumented tests
+        val isTest = try {
+            Class.forName("androidx.test.espresso.Espresso")
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
 
-        // UMP Consent Request
-        val params = ConsentRequestParameters.Builder().build()
-        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
-        consentInformation.requestConsentInfoUpdate(
-            this,
-            params,
-            {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
-            },
-            { _ -> }
-        )
+        if (!isTest) {
+            MobileAds.initialize(this) {}
+
+            // UMP Consent Request
+            val params = ConsentRequestParameters.Builder().build()
+            val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+            consentInformation.requestConsentInfoUpdate(
+                this,
+                params,
+                {
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
+                },
+                { _ -> }
+            )
+        }
     }
 }
 
@@ -590,7 +607,8 @@ fun TrackingScreen(
                                             editingRadiusScheduleIndex = index
                                             editingRadiusTarget = PickTarget.END
                                             showRadiusDialog = true
-                                        }
+                                        },
+                                        modifier = Modifier.testTag("schedule_item")
                                     )
                                 }
                             }
@@ -1396,10 +1414,11 @@ fun ScheduleItem(
     onTogglePickEnd: () -> Unit,
     onSetStartRadius: (() -> Unit)? = null,
     onSetEndRadius: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(

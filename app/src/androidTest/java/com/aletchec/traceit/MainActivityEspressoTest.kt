@@ -1,12 +1,18 @@
 package com.aletchec.traceit
 
+import android.Manifest
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +21,16 @@ import org.junit.runner.RunWith
 class MainActivityEspressoTest {
 
     @get:Rule
-    val composeTestRule = createAndroidComposeRule<MainActivity>()
+    val grantPermissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.POST_NOTIFICATIONS,
+        Manifest.permission.ACCESS_BACKGROUND_LOCATION
+    )
+
+    @get:Rule
+    val composeTestRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> =
+        createAndroidComposeRule<MainActivity>()
 
     @Test
     fun activityLaunches() {
@@ -42,5 +57,14 @@ class MainActivityEspressoTest {
         val aboutText = composeTestRule.activity.getString(R.string.about)
         composeTestRule.onNodeWithContentDescription(menuText).performClick()
         composeTestRule.onNodeWithText(aboutText).assertIsDisplayed()
+    }
+
+    @Test
+    fun addNewScheduleTest() {
+        val addScheduleDesc = composeTestRule.activity.getString(R.string.add_schedule)
+
+        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
+        composeTestRule.onNodeWithContentDescription(addScheduleDesc).performClick()
+        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(2)
     }
 }
