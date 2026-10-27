@@ -45,12 +45,14 @@ class MainActivityEspressoTest {
     fun activityLaunches() {
         composeTestRule.onNodeWithTag("menu_button").assertIsDisplayed()
         waitForMapToLoad()
+        takeScreenshot("main_screen.png")
     }
 
     @Test
     fun menuButtonIsDisplayed() {
         val menuText = composeTestRule.activity.getString(R.string.menu)
         composeTestRule.onNodeWithContentDescription(menuText).assertIsDisplayed()
+        takeScreenshot("menu_button.png")
     }
 
     @Test
@@ -59,6 +61,7 @@ class MainActivityEspressoTest {
         val optionsText = composeTestRule.activity.getString(R.string.options)
         composeTestRule.onNodeWithContentDescription(menuText).performClick()
         composeTestRule.onNodeWithText(optionsText).assertIsDisplayed()
+        takeScreenshot("options_dialog.png")
     }
 
     @Test
@@ -69,6 +72,7 @@ class MainActivityEspressoTest {
         composeTestRule.onNodeWithText(aboutText).assertIsDisplayed()
         composeTestRule.onNodeWithText(aboutText).performClick()
         composeTestRule.waitForIdle()
+        takeScreenshot("about_dialog.png")
     }
 
     @Test
@@ -83,6 +87,25 @@ class MainActivityEspressoTest {
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
         composeTestRule.onNodeWithTag("add_schedule_button").performClick()
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(2)
+        takeScreenshot("track_screen.png")
+    }
+
+    private fun takeScreenshot(fileName: String) {
+        try {
+            val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            val bitmap = instrumentation.uiAutomation.takeScreenshot()
+            if (bitmap != null) {
+                val dir = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES), "screenshots")
+                if (!dir.exists()) dir.mkdirs()
+                val file = java.io.File(dir, fileName)
+                java.io.FileOutputStream(file).use { out ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                }
+                bitmap.recycle()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun waitForMapToLoad(timeoutMillis: Long = 5000) {

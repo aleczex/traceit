@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-Orchestrates Android instrumentation testing and screenshot capture via PowerShell and ADB.
+Orchestrates Android instrumentation testing test-by-test where tests capture screenshots while the app is active.
 .PARAMETER TestClass
-Optional fully qualified test class name (e.g., com.aletchec.traceit.MainActivityEspressoTest).
+Optional fully qualified test class name or class#method (e.g., com.aletchec.traceit.MainActivityEspressoTest).
 .PARAMETER DeviceId
 Required emulator or device serial ID when multiple devices are running.
 .PARAMETER Variant
@@ -52,7 +52,7 @@ function Write-ErrorMsg {
 }
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host " TraceIt: Running Instrumentation Tests & Screenshots" -ForegroundColor Cyan
+Write-Host " TraceIt: Running Instrumentation Tests & Screencaps" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
 # Step 1: Locate ADB
@@ -152,42 +152,83 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Success "APKs installed successfully."
 
-# Step 6: Run Instrumentation Tests via ADB
-Write-Step "Running instrumentation tests on device '$DeviceId'..."
-$instrumentCmd = @("-s", $DeviceId, "shell", "am", "instrument", "-w")
+# Clear and ensure remote screenshot directory exists on device
+& $adbCmd -s $DeviceId shell rm -rf /sdcard/Pictures/screenshots
+& $adbCmd -s $DeviceId shell mkdir -p /sdcard/Pictures/screenshots
+
+# Step 6: Define Test Cases & Execute Separately
+$testCases = @()
 if (-not [string]::IsNullOrEmpty($TestClass)) {
-    Write-Info "Target Test Class: $TestClass"
-    $instrumentCmd += @("-e", "class", $TestClass)
+    if ($TestClass.Contains("#")) {
+        $parts = $TestClass.Split("#")
+        $methodName = $parts[1]
+        $testCases += @{ FullTest = $TestClass; Name = $methodName }
+    } else {
+        $baseClass = $TestClass
+        if ($baseClass -match "MainActivityEspressoTest") {
+            $testCases = @(
+                @{ FullTest = "$baseClass#activityLaunches"; Name = "activityLaunches" },
+                @{ FullTest = "$baseClass#menuButtonIsDisplayed"; Name = "menuButtonIsDisplayed" },
+                @{ FullTest = "$baseClass#menuContainsSettingsAction"; Name = "menuContainsSettingsAction" },
+                @{ FullTest = "$baseClass#menuContainsAboutAction"; Name = "menuContainsAboutAction" },
+                @{ FullTest = "$baseClass#addNewScheduleTest"; Name = "addNewScheduleTest" }
+            )
+        } elseif ($baseClass -match "TrackingSchedulerInstrumentedTest") {
+            $testCases = @(
+                @{ FullTest = "$baseClass#testAddNewScheduleAndPersistence"; Name = "testAddNewScheduleAndPersistence" }
+            )
+        } else {
+            $testCases += @{ FullTest = $TestClass; Name = "custom_test" }
+        }
+    }
 } else {
-    Write-Info "Running all instrumentation tests"
+    $baseClass = "com.aletchec.traceit.MainActivityEspressoTest"
+    $testCases = @(
+        @{ FullTest = "$baseClass#activityLaunches"; Name = "activityLaunches" },
+        @{ FullTest = "$baseClass#menuButtonIsDisplayed"; Name = "menuButtonIsDisplayed" },
+        @{ FullTest = "$baseClass#menuContainsSettingsAction"; Name = "menuContainsSettingsAction" },
+        @{ FullTest = "$baseClass#menuContainsAboutAction"; Name = "menuContainsAboutAction" },
+        @{ FullTest = "$baseClass#addNewScheduleTest"; Name = "addNewScheduleTest" }
+    )
 }
-$instrumentCmd += "com.aletchec.traceit.dev.test/androidx.test.runner.AndroidJUnitRunner"
 
-Write-Info "Executing: $adbCmd $($instrumentCmd -join ' ')"
-& $adbCmd @instrumentCmd
-$testExitCode = $LASTEXITCODE
+Write-Step "Executing $($testCases.Count) test case(s) separately (app captures screenshots internally)..."
+$overallSuccess = $true
 
-# Step 7: Pull Screenshots
-Write-Step "Pulling screenshots from device '$DeviceId' to '$Output'..."
-$targetOutputDir = Join-Path $PSScriptRoot $Output
+foreach ($tc in $testCases) {
+    $testName = $tc.FullTest
+    Write-Host "--------------------------------------------------" -ForegroundColor Cyan
+    Write-Step "Running test: $testName"
+
+    $instrumentCmd = @("-s", $DeviceId, "shell", "am", "instrument", "-w", "-e", "class", $testName, "com.aletchec.traceit.dev.test/androidx.test.runner.AndroidJUnitRunner")
+    & $adbCmd @instrumentCmd
+    $testResult = $LASTEXITCODE
+
+    if ($testResult -eq 0) {
+        Write-Success "Test '$testName' passed."
+    } else {
+        Write-WarningMsg "Test '$testName' failed with exit code $testResult."
+        $overallSuccess = $false
+    }
+}
+
+# Step 7: Pull Screenshots into target directory (screenshots/<DeviceId>/)
+$targetOutputDir = Join-Path $PSScriptRoot "$Output/$DeviceId"
+Write-Step "Pulling screenshots from device '$DeviceId' to '$targetOutputDir'..."
 if (-not (Test-Path $targetOutputDir)) {
     New-Item -ItemType Directory -Force -Path $targetOutputDir | Out-Null
 }
 
-Write-Info "Pulling public pictures screenshots..."
+Write-Info "Pulling captured screenshots..."
 & $adbCmd -s $DeviceId pull "/sdcard/Pictures/screenshots/." $targetOutputDir 2>&1 | Out-Null
-
-Write-Info "Pulling app-specific screenshots..."
-& $adbCmd -s $DeviceId pull "/sdcard/Android/data/com.aletchec.traceit.dev/files/screenshots/." $targetOutputDir 2>&1 | Out-Null
-
-Write-Success "Screenshot pull process completed."
+Write-Success "Screenshot pull process completed into '$Output/$DeviceId/'."
 
 # Step 8: Final Summary
 Write-Host "--------------------------------------------------" -ForegroundColor Cyan
-if ($testExitCode -eq 0) {
-    Write-Success "Tests completed successfully and screenshots saved to '$Output'."
+if ($overallSuccess) {
+    Write-Success "All tests completed successfully and screenshots saved to '$Output/$DeviceId/'."
     exit 0
 } else {
-    Write-ErrorMsg "Tests completed with failures (exit code $testExitCode), but screenshots were pulled."
-    exit $testExitCode
+    Write-WarningMsg "Some tests failed, but test execution finished and screenshots were saved to '$Output/$DeviceId/'."
+    exit 1
 }
