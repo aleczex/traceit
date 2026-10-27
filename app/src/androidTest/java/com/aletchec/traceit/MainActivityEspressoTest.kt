@@ -44,6 +44,7 @@ class MainActivityEspressoTest {
     @Test
     fun activityLaunches() {
         composeTestRule.onNodeWithTag("menu_button").assertIsDisplayed()
+        waitForMapToLoad()
     }
 
     @Test
@@ -66,6 +67,8 @@ class MainActivityEspressoTest {
         val aboutText = composeTestRule.activity.getString(R.string.about)
         composeTestRule.onNodeWithContentDescription(menuText).performClick()
         composeTestRule.onNodeWithText(aboutText).assertIsDisplayed()
+        composeTestRule.onNodeWithText(aboutText).performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -77,5 +80,19 @@ class MainActivityEspressoTest {
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
         composeTestRule.onNodeWithTag("add_schedule_button").performClick()
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(2)
+    }
+
+    private fun waitForMapToLoad(timeoutMillis: Long = 5000) {
+        composeTestRule.waitUntil(timeoutMillis) {
+            try {
+                composeTestRule.onNodeWithTag("track_map").assertIsDisplayed()
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
+        composeTestRule.waitForIdle()
+        Thread.sleep(1500)
+        composeTestRule.waitForIdle()
     }
 }

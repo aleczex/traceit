@@ -2238,6 +2238,7 @@ fun TrackMap(
             }
         },
         modifier = modifier
+            .testTag("track_map")
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
         update = { map ->
