@@ -74,7 +74,10 @@ class MainActivityEspressoTest {
     @Test
     fun addNewScheduleTest() {
         try {
-            composeTestRule.onNodeWithTag("app_title").performTouchInput { swipeUp() }
+            val nodes = composeTestRule.onAllNodesWithTag("app_title").fetchSemanticsNodes()
+            if (nodes.isNotEmpty()) {
+                composeTestRule.onNodeWithTag("app_title").performTouchInput { swipeUp() }
+            }
         } catch (_: Exception) {}
 
         composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
