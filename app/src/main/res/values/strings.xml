@@ -206,4 +206,5 @@
     <string name="print_map">Print Map</string>
     <string name="export_success">File exported successfully</string>
     <string name="export_failed">Failed to export file: %s</string>
+    <string name="export_footer_format">%1$s %2$s | %3$s | Generated: %4$s</string>
 </resources>

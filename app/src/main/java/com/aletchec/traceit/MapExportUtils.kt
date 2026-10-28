@@ -143,6 +143,48 @@ object MapExportUtils {
         }
     }
 
+    private fun drawFooterOnMap(
+        context: Context,
+        canvas: Canvas,
+        mapTopY: Float,
+        mapHeight: Float
+    ) {
+        try {
+            val versionName = BuildConfig.VERSION_NAME
+            val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
+            val versionStr = context.getString(R.string.version_variant_format, versionName, buildVariant)
+            val dateTimeStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            val appName = context.getString(R.string.app_name)
+            val websiteUrl = "https://aletchec.com/traceit.html"
+            val footerText = context.getString(R.string.export_footer_format, appName, versionStr, websiteUrl, dateTimeStr)
+
+            val paint = Paint().apply {
+                isAntiAlias = true
+                textSize = 12f
+                typeface = android.graphics.Typeface.DEFAULT
+            }
+
+            val paddingX = 12f
+            val textWidth = paint.measureText(footerText)
+            val barWidth = textWidth + paddingX * 2
+            val barHeight = 26f
+
+            val barLeft = 16f
+            val barTop = mapTopY + mapHeight - barHeight - 16f
+
+            val bgPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#B0000000")
+            }
+            canvas.drawRect(barLeft, barTop, barLeft + barWidth, barTop + barHeight, bgPaint)
+
+            paint.color = Color.WHITE
+            canvas.drawText(footerText, barLeft + paddingX, barTop + 18f, paint)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun generateAnnotatedMapBitmap(
         context: Context,
         mapView: MapView,
@@ -186,6 +228,9 @@ object MapExportUtils {
 
             // Draw Map Bitmap below header
             canvas.drawBitmap(mapBitmap, 0f, headerHeight.toFloat(), null)
+
+            // Draw Footer on the lower part of the map
+            drawFooterOnMap(context, canvas, headerHeight.toFloat(), mapBitmap.height.toFloat())
 
             annotatedBitmap
         } catch (e: Exception) {
@@ -232,10 +277,16 @@ object MapExportUtils {
             val endLabel = context.getString(R.string.end_time_label, endTimeStr)
             canvas.drawText("$startLabel  |  $endLabel", 40f, 90f, paint)
 
-            // Draw Map Bitmap scaled nicely
+            // Create temporary annotated bitmap with footer on map so PDF has footer on lower part of map
+            val tempAnnotatedBitmap = Bitmap.createBitmap(mapBitmap.width, mapBitmap.height, Bitmap.Config.ARGB_8888)
+            val tempCanvas = Canvas(tempAnnotatedBitmap)
+            tempCanvas.drawBitmap(mapBitmap, 0f, 0f, null)
+            drawFooterOnMap(context, tempCanvas, 0f, mapBitmap.height.toFloat())
+
+            // Draw Map Bitmap scaled nicely (available space from y=110 to y=820 is 710)
             val availableWidth = 515f // 595 - 80 margin
-            val availableHeight = 680f // 842 - 140 top/bottom margin
-            val mapAspect = mapBitmap.height.toFloat() / mapBitmap.width.toFloat()
+            val availableHeight = 710f // 820 - 110 margin
+            val mapAspect = tempAnnotatedBitmap.height.toFloat() / tempAnnotatedBitmap.width.toFloat()
 
             var drawWidth = availableWidth
             var drawHeight = drawWidth * mapAspect
@@ -247,9 +298,9 @@ object MapExportUtils {
             val left = 40f + (availableWidth - drawWidth) / 2f
             val top = 110f
 
-            val srcRect = android.graphics.Rect(0, 0, mapBitmap.width, mapBitmap.height)
+            val srcRect = android.graphics.Rect(0, 0, tempAnnotatedBitmap.width, tempAnnotatedBitmap.height)
             val destRect = android.graphics.RectF(left, top, left + drawWidth, top + drawHeight)
-            canvas.drawBitmap(mapBitmap, srcRect, destRect, null)
+            canvas.drawBitmap(tempAnnotatedBitmap, srcRect, destRect, null)
 
             pdfDocument.finishPage(page)
 

@@ -206,4 +206,5 @@
     <string name="print_map">Drukuj mapę</string>
     <string name="export_success">Plik został pomyślnie wyeksportowany</string>
     <string name="export_failed">Nie udało się wyeksportować pliku: %s</string>
+    <string name="export_footer_format">%1$s %2$s | %3$s | Wygenerowano: %4$s</string>
 </resources>
