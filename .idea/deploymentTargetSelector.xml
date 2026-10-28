@@ -26,10 +26,10 @@
       </SelectionState>
       <SelectionState runConfigName="MainActivityEspressoTest">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-10-27T11:10:34.015000600Z">
+        <DropdownSelection timestamp="2026-10-28T11:30:34.399066800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Alek\.android\avd\7_WSVGA_Tablet.avd" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Alek\.android\avd\Pixel_9_Pro.avd" />
             </handle>
           </Target>
         </DropdownSelection>
