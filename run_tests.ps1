@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Orchestrates Android instrumentation testing test-by-test where tests capture screenshots while the app is active.
+Orchestrates Android instrumentation testing where tests capture screenshots while the app is active.
 .PARAMETER TestClass
 Optional fully qualified test class name or class#method (e.g., com.aletchec.traceit.MainActivityEspressoTest).
 .PARAMETER DeviceId
@@ -51,9 +51,9 @@ function Write-ErrorMsg {
     Write-Host "[$time] [ERROR] $Message" -ForegroundColor Red
 }
 
-Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host " TraceIt: Running Instrumentation Tests & Screencaps" -ForegroundColor Cyan
-Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
 
 # Step 1: Locate ADB
 Write-Step "Locating ADB (Android Debug Bridge)..."
@@ -156,60 +156,22 @@ Write-Success "APKs installed successfully."
 & $adbCmd -s $DeviceId shell rm -rf /sdcard/Pictures/screenshots
 & $adbCmd -s $DeviceId shell mkdir -p /sdcard/Pictures/screenshots
 
-# Step 6: Define Test Cases & Execute Separately
-$testCases = @()
-if (-not [string]::IsNullOrEmpty($TestClass)) {
-    if ($TestClass.Contains("#")) {
-        $parts = $TestClass.Split("#")
-        $methodName = $parts[1]
-        $testCases += @{ FullTest = $TestClass; Name = $methodName }
-    } else {
-        $baseClass = $TestClass
-        if ($baseClass -match "MainActivityEspressoTest") {
-            $testCases = @(
-                @{ FullTest = "$baseClass#activityLaunches"; Name = "activityLaunches" },
-                @{ FullTest = "$baseClass#menuButtonIsDisplayed"; Name = "menuButtonIsDisplayed" },
-                @{ FullTest = "$baseClass#menuContainsSettingsAction"; Name = "menuContainsSettingsAction" },
-                @{ FullTest = "$baseClass#menuContainsAboutAction"; Name = "menuContainsAboutAction" },
-                @{ FullTest = "$baseClass#addNewScheduleTest"; Name = "addNewScheduleTest" }
-            )
-        } elseif ($baseClass -match "TrackingSchedulerInstrumentedTest") {
-            $testCases = @(
-                @{ FullTest = "$baseClass#testAddNewScheduleAndPersistence"; Name = "testAddNewScheduleAndPersistence" }
-            )
-        } else {
-            $testCases += @{ FullTest = $TestClass; Name = "custom_test" }
-        }
-    }
-} else {
-    $baseClass = "com.aletchec.traceit.MainActivityEspressoTest"
-    $testCases = @(
-        @{ FullTest = "$baseClass#activityLaunches"; Name = "activityLaunches" },
-        @{ FullTest = "$baseClass#menuButtonIsDisplayed"; Name = "menuButtonIsDisplayed" },
-        @{ FullTest = "$baseClass#menuContainsSettingsAction"; Name = "menuContainsSettingsAction" },
-        @{ FullTest = "$baseClass#menuContainsAboutAction"; Name = "menuContainsAboutAction" },
-        @{ FullTest = "$baseClass#addNewScheduleTest"; Name = "addNewScheduleTest" }
-    )
-}
+# Step 6: Define Test to Execute
+$testToRun = if (-not [string]::IsNullOrEmpty($TestClass)) { $TestClass } else { "com.aletchec.traceit.MainActivityEspressoTest" }
 
-Write-Step "Executing $($testCases.Count) test case(s) separately (app captures screenshots internally)..."
+Write-Step "Executing test: $testToRun (app captures screenshots internally)..."
 $overallSuccess = $true
 
-foreach ($tc in $testCases) {
-    $testName = $tc.FullTest
-    Write-Host "--------------------------------------------------" -ForegroundColor Cyan
-    Write-Step "Running test: $testName"
+Write-Host "--------------------------------------------------" -ForegroundColor Cyan
+$instrumentCmd = @("-s", $DeviceId, "shell", "am", "instrument", "-w", "-e", "class", $testToRun, "com.aletchec.traceit.dev.test/androidx.test.runner.AndroidJUnitRunner")
+& $adbCmd @instrumentCmd
+$testResult = $LASTEXITCODE
 
-    $instrumentCmd = @("-s", $DeviceId, "shell", "am", "instrument", "-w", "-e", "class", $testName, "com.aletchec.traceit.dev.test/androidx.test.runner.AndroidJUnitRunner")
-    & $adbCmd @instrumentCmd
-    $testResult = $LASTEXITCODE
-
-    if ($testResult -eq 0) {
-        Write-Success "Test '$testName' passed."
-    } else {
-        Write-WarningMsg "Test '$testName' failed with exit code $testResult."
-        $overallSuccess = $false
-    }
+if ($testResult -eq 0) {
+    Write-Success "Test(s) '$testToRun' passed."
+} else {
+    Write-WarningMsg "Test(s) '$testToRun' failed with exit code $testResult."
+    $overallSuccess = $false
 }
 
 # Step 7: Pull Screenshots into target directory (screenshots/<DeviceId>/)
