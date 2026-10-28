@@ -59,6 +59,9 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.HistoryEdu
 import androidx.compose.material.icons.rounded.PrivacyTip
@@ -936,7 +939,7 @@ fun TrackingScreen(
                             }
                             Box {
                                 IconButton(onClick = { showExportMenu = true }) {
-                                    Icon(Icons.Default.Print, contentDescription = stringResource(R.string.export_map))
+                                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export_map))
                                 }
                                 DropdownMenu(
                                     expanded = showExportMenu,
@@ -944,6 +947,9 @@ fun TrackingScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.export_as_image)) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Image, contentDescription = null)
+                                        },
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
@@ -971,6 +977,9 @@ fun TrackingScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.export_as_pdf)) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                                        },
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
@@ -994,6 +1003,9 @@ fun TrackingScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.print_map)) },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Print, contentDescription = null)
+                                        },
                                         onClick = {
                                             showExportMenu = false
                                             mapViewInstance?.let { map ->
