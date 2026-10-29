@@ -207,4 +207,10 @@
     <string name="export_success">File exported successfully</string>
     <string name="export_failed">Failed to export file: %s</string>
     <string name="export_footer_format">%1$s %2$s | %3$s | Generated: %4$s</string>
+
+    <!-- Permission Disclosure -->
+    <string name="permission_disclosure_title">Background Service &amp; Location Permissions</string>
+    <string name="permission_disclosure_message">TraceIt runs background tracking services during your scheduled tracking times or active sessions. To operate correctly, the app requires the following permissions:\n\n• Precise &amp; Coarse Location: To track your route and record GPX track points.\n• Notifications: To display a persistent service notification required for background and foreground service execution.\n\nDo you consent to granting these permissions?</string>
+    <string name="permission_disclosure_agree">Agree</string>
+    <string name="permission_disclosure_cancel">Cancel</string>
 </resources>

@@ -207,4 +207,10 @@
     <string name="export_success">Plik został pomyślnie wyeksportowany</string>
     <string name="export_failed">Nie udało się wyeksportować pliku: %s</string>
     <string name="export_footer_format">%1$s %2$s | %3$s | Wygenerowano: %4$s</string>
+
+    <!-- Permission Disclosure -->
+    <string name="permission_disclosure_title">Uprawnienia do serwisu w tle i lokalizacji</string>
+    <string name="permission_disclosure_message">TraceIt uruchamia usługi śledzenia w tle podczas zaplanowanych godzin lub aktywnych sesji. Aby działać poprawnie, aplikacja wymaga następujących uprawnień:\n\n• Dokładna i przybliżona lokalizacja: Do śledzenia trasy i zapisywania punktów GPX.\n• Powiadomienia: Do wyświetlania powiadomienia wymaganego dla działania serwisu w tle i pierwszego planu (Foreground Service).\n\nCzy wyrażasz zgodę na przyznanie tych uprawnień?</string>
+    <string name="permission_disclosure_agree">Wyrażam zgodę</string>
+    <string name="permission_disclosure_cancel">Anuluj</string>
 </resources>

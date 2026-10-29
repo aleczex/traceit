@@ -207,4 +207,10 @@
     <string name="export_success">Datei erfolgreich exportiert</string>
     <string name="export_failed">Fehler beim Exportieren der Datei: %s</string>
     <string name="export_footer_format">%1$s %2$s | %3$s | Erstellt: %4$s</string>
+
+    <!-- Permission Disclosure -->
+    <string name="permission_disclosure_title">Hintergrunddienst- &amp; Standortberechtigungen</string>
+    <string name="permission_disclosure_message">TraceIt führt während Ihrer geplanten Tracking-Zeiten Hintergrund-Tracking-Dienste aus. Um ordnungsgemäß zu funktionieren, benötigt die App folgende Berechtigungen:\n\n• Genauer &amp; Ungefährer Standort: Zum Verfolgen Ihrer Route und Aufzeichnen von GPX-Punkten.\n• Benachrichtigungen: Zum Anzeigen einer dauerhaften Dienstbenachrichtigung für den Hintergrund- und Vordergrunddienst.\n\nStimmen Sie der Erteilung dieser Berechtigungen zu?</string>
+    <string name="permission_disclosure_agree">Einverstanden</string>
+    <string name="permission_disclosure_cancel">Abbrechen</string>
 </resources>

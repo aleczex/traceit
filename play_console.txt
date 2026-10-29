@@ -1,0 +1,25 @@
+=== APP PURPOSE IN RELATION TO LOCATION PERMISSIONS ===
+The core purpose of TraceIt is to give parents peace of mind by automatically monitoring children's school bus commutes. To achieve this, ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION capture precise and approximate GPS positions to map routes and calculate distance/duration. ACCESS_BACKGROUND_LOCATION enables autonomous trip tracking in the background during scheduled school hours and geofences, recording accurate GPX tracks without requiring parents to keep the app open.
+
+=== GOOGLE PLAY CONSOLE LOCATION PERMISSION JUSTIFICATION (Under 500 chars) ===
+TraceIt tracks school bus commutes to help parents verify safe routes. ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION provide precise and approximate GPS coordinates to calculate trip distance, plot routes on maps, and detect geofences. ACCESS_BACKGROUND_LOCATION is required for autonomous trip recording during scheduled school hours without keeping the app open, using a foreground service and activity recognition to log GPS points into GPX files safely.
+
+=== BACKGROUND LOCATION FEATURE DESCRIPTION (Under 500 chars) ===
+Automated School Bus Route Tracking: The app features smart scheduling and geofencing that automatically tracks a child's school bus commute in the background. Parents set home/school geofences and active school hours. When the device departs home during scheduled times, a foreground service autonomously records GPS route points into GPX files, calculates distance and duration statistics, and stops upon arrival—all without requiring the user to keep the app open.
+
+=== YOUTUBE DEMO VIDEO SCRIPT ===
+Title: How TraceIt Automates School Bus Route Tracking (Background GPS & Geofencing)
+Format: 90-second App Demo & Tutorial (Ideal for YouTube / Play Console demonstration)
+
+[0:00 - 0:15] The Problem (Hook):
+"Are you ever worried about how long your child's school bus ride takes? School buses often take circuitous detours, but checking the route shouldn't require manual tracking every single day."
+
+[0:15 - 0:45] Smart Setup (Schedules & Geofences):
+"Meet TraceIt—the privacy-focused app designed for parents. Setup takes seconds. Define your school schedule and set geographical geofences for home and school once. TraceIt handles the rest automatically."
+
+[0:45 - 1:15] Background Tracking in Action:
+
+"Once configured, the app runs entirely in the background. Using Android's foreground service and background location, TraceIt detects when the bus leaves home and automatically starts recording the trip—even with the screen off or app closed."
+
+[1:15 - 1:45] Results & GPX Export:
+"At the end of the trip, view complete statistics—total distance and travel time. Browse past GPX logs or export them to share with school authorities or analyze in advanced mapping tools. TraceIt: Total peace of mind for school commutes."

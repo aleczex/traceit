@@ -422,11 +422,17 @@ fun TrackingScreen(
         }
     }
 
-    val launcher = rememberLauncherForActivityResult(
+    val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> }
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (!allGranted) {
+            Toast.makeText(context, R.string.location_permission_required, Toast.LENGTH_SHORT).show()
+        }
+    }
 
-    var hasRequestedPermissions by remember { mutableStateOf(false) }
+    var showPermissionDisclosureDialog by remember { mutableStateOf(false) }
+    var pendingPermissionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Periodically fetch logged points and update status
     LaunchedEffect(selectedFile, ranges.size) {
@@ -437,19 +443,14 @@ fun TrackingScreen(
             val allGranted = permissionsToRequest.all {
                 ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
             }
-            if (isAllowed) {
-                if (allGranted) {
-                    val intent = Intent(context, LocationService::class.java).apply {
-                        putExtra("ranges", scheduler.serializeRanges(ranges))
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(intent)
-                    } else {
-                        context.startService(intent)
-                    }
-                } else if (!hasRequestedPermissions) {
-                    launcher.launch(permissionsToRequest.toTypedArray())
-                    hasRequestedPermissions = true
+            if (isAllowed && allGranted) {
+                val intent = Intent(context, LocationService::class.java).apply {
+                    putExtra("ranges", scheduler.serializeRanges(ranges))
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
                 }
             }
 
@@ -549,8 +550,19 @@ fun TrackingScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = {
-                                        ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
-                                        scheduler.saveSchedules(context, ranges)
+                                        val allGranted = permissionsToRequest.all {
+                                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                                        }
+                                        if (ranges.isEmpty() && !allGranted) {
+                                            pendingPermissionAction = {
+                                                ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
+                                                scheduler.saveSchedules(context, ranges)
+                                            }
+                                            showPermissionDisclosureDialog = true
+                                        } else {
+                                            ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
+                                            scheduler.saveSchedules(context, ranges)
+                                        }
                                     },
                                     modifier = Modifier.testTag("add_schedule_button")
                                 ) {
@@ -752,17 +764,6 @@ fun TrackingScreen(
             )
 
             // Map controls row (Zoom In, Zoom Out, Crosshair) in bottom right of map
-            val locationLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestMultiplePermissions()
-            ) { permissions ->
-                val allGranted = permissions.values.all { it }
-                if (allGranted && mapViewInstance != null) {
-                    fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
-                } else {
-                    Toast.makeText(context, R.string.location_permission_required, Toast.LENGTH_SHORT).show()
-                }
-            }
-
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -773,7 +774,17 @@ fun TrackingScreen(
                 // Zoom In (+)
                 FloatingActionButton(
                     onClick = {
-                        mapViewInstance?.controller?.zoomIn()
+                        val allGranted = permissionsToRequest.all {
+                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                        }
+                        if (allGranted) {
+                            mapViewInstance?.controller?.zoomIn()
+                        } else {
+                            pendingPermissionAction = {
+                                mapViewInstance?.controller?.zoomIn()
+                            }
+                            showPermissionDisclosureDialog = true
+                        }
                     },
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
@@ -785,7 +796,17 @@ fun TrackingScreen(
                 // Zoom Out (-)
                 FloatingActionButton(
                     onClick = {
-                        mapViewInstance?.controller?.zoomOut()
+                        val allGranted = permissionsToRequest.all {
+                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                        }
+                        if (allGranted) {
+                            mapViewInstance?.controller?.zoomOut()
+                        } else {
+                            pendingPermissionAction = {
+                                mapViewInstance?.controller?.zoomOut()
+                            }
+                            showPermissionDisclosureDialog = true
+                        }
                     },
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
@@ -824,7 +845,12 @@ fun TrackingScreen(
                                 fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
                             }
                         } else {
-                            locationLauncher.launch(permissionsToRequest.toTypedArray())
+                            pendingPermissionAction = {
+                                if (mapViewInstance != null) {
+                                    fetchAndCenterLocation(context, fusedLocationClient, mapViewInstance!!)
+                                }
+                            }
+                            showPermissionDisclosureDialog = true
                         }
                     },
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -1390,6 +1416,39 @@ fun TrackingScreen(
     if (showAboutDialog) {
         AboutAppDialog(
             onDismiss = { showAboutDialog = false }
+        )
+    }
+
+    if (showPermissionDisclosureDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPermissionDisclosureDialog = false
+                pendingPermissionAction = null
+            },
+            title = { Text(stringResource(R.string.permission_disclosure_title)) },
+            text = { Text(stringResource(R.string.permission_disclosure_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionDisclosureDialog = false
+                        pendingPermissionAction?.invoke()
+                        pendingPermissionAction = null
+                        permissionLauncher.launch(permissionsToRequest.toTypedArray())
+                    }
+                ) {
+                    Text(stringResource(R.string.permission_disclosure_agree))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionDisclosureDialog = false
+                        pendingPermissionAction = null
+                    }
+                ) {
+                    Text(stringResource(R.string.permission_disclosure_cancel))
+                }
+            }
         )
     }
 }

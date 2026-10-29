@@ -207,4 +207,10 @@
     <string name="export_success">Archivo exportado con éxito</string>
     <string name="export_failed">Error al exportar archivo: %s</string>
     <string name="export_footer_format">%1$s %2$s | %3$s | Generado: %4$s</string>
+
+    <!-- Permission Disclosure -->
+    <string name="permission_disclosure_title">Permisos de servicio en segundo plano y ubicación</string>
+    <string name="permission_disclosure_message">TraceIt ejecuta servicios de seguimiento en segundo plano durante las horas programadas. Para funcionar correctamente, la aplicación requiere los siguientes permisos:\n\n• Ubicación precisa y aproximada: Para rastrear tu ruta y registrar puntos GPX.\n• Notificaciones: Para mostrar una notificación persistente del servicio en segundo plano y primer plano.\n\n¿Estás de acuerdo en otorgar estos permisos?</string>
+    <string name="permission_disclosure_agree">Aceptar</string>
+    <string name="permission_disclosure_cancel">Cancelar</string>
 </resources>
