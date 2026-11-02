@@ -164,7 +164,7 @@ class TrackingScheduler {
 
     fun saveSchedules(context: Context, ranges: List<TimeRange>) {
         val sharedPrefs = context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE)
-        sharedPrefs.edit().putString("saved_ranges", serializeRanges(ranges)).apply()
+        sharedPrefs.edit().putString("saved_ranges", serializeRanges(ranges)).commit()
     }
 
     fun loadSchedules(context: Context): List<TimeRange> {
