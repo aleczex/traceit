@@ -553,15 +553,15 @@ fun TrackingScreen(
                                         val allGranted = permissionsToRequest.all {
                                             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
                                         }
-                                        if (ranges.isEmpty() && !allGranted) {
+                                        if (allGranted) {
+                                            ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
+                                            scheduler.saveSchedules(context, ranges)
+                                        } else {
                                             pendingPermissionAction = {
                                                 ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
                                                 scheduler.saveSchedules(context, ranges)
                                             }
                                             showPermissionDisclosureDialog = true
-                                        } else {
-                                            ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
-                                            scheduler.saveSchedules(context, ranges)
                                         }
                                     },
                                     modifier = Modifier.testTag("add_schedule_button")
