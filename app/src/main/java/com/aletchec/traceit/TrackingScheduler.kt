@@ -29,26 +29,31 @@ class TrackingScheduler {
         return getActiveRange(ranges) != null
     }
 
-    fun getActiveRange(ranges: List<TimeRange>): TimeRange? {
+    fun getActiveRange(ranges: List<TimeRange>, now: Calendar = Calendar.getInstance()): TimeRange? {
         if (ranges.isEmpty()) return null
 
-        val now = Calendar.getInstance()
         val currentDayOfWeek = now.get(Calendar.DAY_OF_WEEK)
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val currentMinute = now.get(Calendar.MINUTE)
         val currentTimeInMinutes = currentHour * 60 + currentMinute
 
         for (range in ranges) {
-            if (!range.daysOfWeek.contains(currentDayOfWeek)) continue
-
             val startInMinutes = range.startHour * 60 + range.startMinute
             val endInMinutes = range.endHour * 60 + range.endMinute
 
             if (startInMinutes <= endInMinutes) {
+                if (!range.daysOfWeek.contains(currentDayOfWeek)) continue
                 if (currentTimeInMinutes in startInMinutes..endInMinutes) return range
             } else {
                 // Range spans across midnight
-                if (currentTimeInMinutes >= startInMinutes || currentTimeInMinutes <= endInMinutes) return range
+                if (currentTimeInMinutes >= startInMinutes) {
+                    if (!range.daysOfWeek.contains(currentDayOfWeek)) continue
+                    return range
+                } else if (currentTimeInMinutes <= endInMinutes) {
+                    val prevDayOfWeek = if (currentDayOfWeek == Calendar.SUNDAY) Calendar.SATURDAY else currentDayOfWeek - 1
+                    if (!range.daysOfWeek.contains(prevDayOfWeek)) continue
+                    return range
+                }
             }
         }
         return null
