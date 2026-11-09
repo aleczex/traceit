@@ -1,11 +1,33 @@
 import java.util.Properties
 import java.io.InputStream
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.oss.licenses)
+}
+
+fun getGitCommitHash(): String {
+    return try {
+        val result = providers.exec {
+            commandLine("git", "rev-parse", "--short", "HEAD")
+        }
+        val sha = result.standardOutput.asText.get().trim()
+        if (sha.isNotEmpty() && !sha.lowercase().contains("fatal")) sha else "N/A"
+    } catch (_: Exception) {
+        "N/A"
+    }
+}
+
+fun getBuildDateTime(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    sdf.timeZone = TimeZone.getDefault()
+    return sdf.format(Date())
 }
 
 android {
@@ -20,6 +42,8 @@ android {
         versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "BUILD_DATE", "\"${getBuildDateTime()}\"")
+        buildConfigField("String", "GIT_SHA", "\"${getGitCommitHash()}\"")
     }
 
     signingConfigs {

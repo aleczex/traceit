@@ -42,6 +42,8 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
 
     val versionName = BuildConfig.VERSION_NAME
     val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
+    val buildDate = BuildConfig.BUILD_DATE
+    val gitSha = BuildConfig.GIT_SHA
 
     val appIconBitmap = if (isPreview) null else remember {
         try {
@@ -92,6 +94,12 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
                 Text(
                     text = stringResource(R.string.version_variant_format, versionName, buildVariant),
                     style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.build_info_format, buildDate, gitSha),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 HtmlText(
