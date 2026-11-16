@@ -23,7 +23,7 @@
     <string name="version_format">v%s</string>
     <string name="version_variant_format">v%1$s (%2$s)</string>
     <string name="build_info_format">Build: %1$s | Commit: %2$s</string>
-    <string name="eula_html"><![CDATA[© 2026 Aletchec<br/><br/><a href="https://aletchec.com/traceit.html">Visit Website</a><br/><a href="https://aletchec.com/eula.html">End User License Agreement (EULA)</a>]]></string>
+    <string name="eula_html"><![CDATA[© 2026 Aletchec<br/><br/><a href="https://aletchec.com/traceit.html">Visit Website</a><br/><a href="https://aletchec.com/privacy.html">Privacy Policy</a><br/><a href="https://aletchec.com/eula.html">End User License Agreement (EULA)</a>]]></string>
     <string name="privacy_form_not_available">Privacy options form not available for your region.</string>
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
