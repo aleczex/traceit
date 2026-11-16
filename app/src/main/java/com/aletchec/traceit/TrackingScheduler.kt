@@ -61,7 +61,7 @@ class TrackingScheduler {
 
     fun serializeRanges(ranges: List<TimeRange>): String {
         return ranges.joinToString("; ") {
-            val namePart = if (it.name.isNotBlank()) it.name else "Schedule"
+            val namePart = if (it.name.isNotBlank()) it.name.replace(";", " ") else "Schedule"
             val start = String.format(Locale.US, "%02d:%02d", it.startHour, it.startMinute)
             val end = String.format(Locale.US, "%02d:%02d", it.endHour, it.endMinute)
             val daysStr = "[" + it.daysOfWeek.sorted().joinToString(",") + "]"
@@ -84,8 +84,7 @@ class TrackingScheduler {
 
     fun parseRanges(input: String): List<TimeRange> {
         return try {
-            val delimiter = if (input.contains(";")) ";" else ","
-            input.split(delimiter).mapNotNull { rangeStr ->
+            input.split(";").mapNotNull { rangeStr ->
                 val str = rangeStr.trim()
                 if (str.isEmpty()) return@mapNotNull null
 
@@ -162,7 +161,7 @@ class TrackingScheduler {
                     } else null
                 } else null
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -178,7 +177,7 @@ class TrackingScheduler {
         return if (!savedStr.isNullOrBlank()) {
             parseRanges(savedStr)
         } else {
-            listOf(TimeRange(8, 0, 16, 0))
+            emptyList()
         }
     }
 }

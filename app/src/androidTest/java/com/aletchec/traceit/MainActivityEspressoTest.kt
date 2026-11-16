@@ -84,9 +84,9 @@ class MainActivityEspressoTest {
             }
         } catch (_: Exception) {}
 
-        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
+        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(0)
         composeTestRule.onNodeWithTag("add_schedule_button").performClick()
-        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(2)
+        composeTestRule.onAllNodesWithTag("schedule_item").assertCountEquals(1)
         takeScreenshot("track_screen.png")
     }
 

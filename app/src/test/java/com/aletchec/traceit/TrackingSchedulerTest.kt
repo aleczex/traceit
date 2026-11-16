@@ -112,6 +112,37 @@ class TrackingSchedulerTest {
     }
 
     @Test
+    fun testSingleScheduleSerializationAndParsing() {
+        val scheduler = TrackingScheduler()
+        val singleRange = listOf(
+            TrackingScheduler.TimeRange(9, 0, 17, 0, name = "Single Schedule")
+        )
+
+        val serialized = scheduler.serializeRanges(singleRange)
+        val parsedRanges = scheduler.parseRanges(serialized)
+
+        assertEquals(1, parsedRanges.size)
+        assertEquals("Single Schedule", parsedRanges[0].name)
+        assertEquals(9, parsedRanges[0].startHour)
+        assertEquals(17, parsedRanges[0].endHour)
+        assertEquals(7, parsedRanges[0].daysOfWeek.size)
+    }
+
+    @Test
+    fun testScheduleNameSanitizesSemicolon() {
+        val scheduler = TrackingScheduler()
+        val ranges = listOf(
+            TrackingScheduler.TimeRange(8, 0, 16, 0, name = "Work; Shift")
+        )
+
+        val serialized = scheduler.serializeRanges(ranges)
+        val parsedRanges = scheduler.parseRanges(serialized)
+
+        assertEquals(1, parsedRanges.size)
+        assertEquals("Work  Shift", parsedRanges[0].name)
+    }
+
+    @Test
     fun testNewScheduleModifyHoursPreservesDefaultDays() {
         val newRange = TrackingScheduler.TimeRange(9, 0, 17, 0, name = "New")
         assertEquals(7, newRange.daysOfWeek.size)
