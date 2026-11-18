@@ -69,13 +69,13 @@ android {
         create("dev") {
             dimension = "mode"
             applicationIdSuffix = ".dev"
-            manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-3940256099942544~3375251002"
+            manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-7325364868833825~6400612494"
             buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
         }
         create("prod") {
             dimension = "mode"
             manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-7325364868833825~8329744634"
-            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-7325364868833825/3310272118\"")
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-7325364868833825/8068917381\"")
         }
     }
 
