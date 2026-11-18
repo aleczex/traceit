@@ -12,6 +12,7 @@ osmdroid = "6.1.20"
 playServicesAds = "25.5.0"
 playServicesLocation = "21.4.0"
 playServicesFitness = "21.3.0"
+rules = "1.7.0"
 userMessagingPlatform = "4.0.0"
 appcompat = "1.8.0"
 ossLicensesPlugin = "0.13.0"
@@ -19,6 +20,7 @@ ossLicensesLibrary = "17.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-rules = { module = "androidx.test:rules", version.ref = "rules" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
