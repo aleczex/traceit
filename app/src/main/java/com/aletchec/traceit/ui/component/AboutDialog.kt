@@ -41,9 +41,10 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
     val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
 
     val versionName = BuildConfig.VERSION_NAME
-    val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
-    val buildDate = BuildConfig.BUILD_DATE
-    val gitSha = BuildConfig.GIT_SHA
+    val isProd = BuildConfig.FLAVOR == "prod"
+    val buildVariant = if (!isProd) "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}" else ""
+    val buildDate = if (!isProd) BuildConfig.BUILD_DATE else ""
+    val gitSha = if (!isProd) BuildConfig.GIT_SHA else ""
 
     val appIconBitmap = if (isPreview) null else remember {
         try {
@@ -92,15 +93,21 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = stringResource(R.string.version_variant_format, versionName, buildVariant),
+                    text = if (isProd) {
+                        stringResource(R.string.version_format, versionName)
+                    } else {
+                        stringResource(R.string.version_variant_format, versionName, buildVariant)
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.build_info_format, buildDate, gitSha),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (!isProd) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.build_info_format, buildDate, gitSha),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 HtmlText(
                     html = Html.fromHtml(

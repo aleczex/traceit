@@ -151,8 +151,13 @@ object MapExportUtils {
     ) {
         try {
             val versionName = BuildConfig.VERSION_NAME
-            val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
-            val versionStr = context.getString(R.string.version_variant_format, versionName, buildVariant)
+            val isProd = BuildConfig.FLAVOR == "prod"
+            val versionStr = if (isProd) {
+                context.getString(R.string.version_format, versionName)
+            } else {
+                val buildVariant = "${BuildConfig.FLAVOR}${BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }}"
+                context.getString(R.string.version_variant_format, versionName, buildVariant)
+            }
             val dateTimeStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
             val appName = context.getString(R.string.app_name)
             val websiteUrl = "https://aletchec.com/traceit.html"
