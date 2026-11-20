@@ -17,3 +17,17 @@
     <init>(android.content.Context, androidx.work.WorkerParameters);
 }
 -dontwarn androidx.work.impl.**
+
+# Google Mobile Ads ProGuard Rules
+-keep public class com.google.android.gms.ads.** {
+   public *;
+}
+-keep public class com.google.ads.** {
+   public *;
+}
+
+# Google User Messaging Platform (UMP) ProGuard Rules
+-keep public class com.google.android.ump.** {
+   public *;
+}
+
