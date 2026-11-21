@@ -214,18 +214,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!isTest) {
-            MobileAds.initialize(this) {}
-
-            // UMP Consent Request
-            val params = ConsentRequestParameters.Builder().build()
+            // UMP Consent Request and AdMob Initialization Sequence
             val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+            val params = ConsentRequestParameters.Builder().build()
+
             consentInformation.requestConsentInfoUpdate(
                 this,
                 params,
                 {
-                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ -> }
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ ->
+                        if (consentInformation.canRequestAds()) {
+                            MobileAds.initialize(this) {}
+                        }
+                    }
                 },
-                { _ -> }
+                { _ ->
+                    if (consentInformation.canRequestAds()) {
+                        MobileAds.initialize(this) {}
+                    }
+                }
             )
         }
     }
@@ -1784,15 +1791,18 @@ fun setDownloadUnlockedForOneDay(context: Context) {
 
 fun loadRewardedAd(context: Context, onAdLoaded: (RewardedAd?) -> Unit) {
     val adRequest = AdRequest.Builder().build()
+    android.util.Log.d("AdMob", "Attempting to load rewarded ad with unit ID: ${BuildConfig.REWARDED_AD_UNIT_ID}")
     RewardedAd.load(
         context,
         BuildConfig.REWARDED_AD_UNIT_ID,
         adRequest,
         object : RewardedAdLoadCallback() {
             override fun onAdLoaded(ad: RewardedAd) {
+                android.util.Log.d("AdMob", "Rewarded ad loaded successfully.")
                 onAdLoaded(ad)
             }
             override fun onAdFailedToLoad(error: LoadAdError) {
+                android.util.Log.e("AdMob", "Rewarded ad failed to load: code = ${error.code}, message = ${error.message}, responseInfo = ${error.responseInfo}")
                 onAdLoaded(null)
             }
         }

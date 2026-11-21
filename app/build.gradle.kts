@@ -75,7 +75,7 @@ android {
         create("prod") {
             dimension = "mode"
             manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-7325364868833825~6400612494"
-            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-7325364868833825/8068917381\"")
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-7325364868833825/2527588735\"")
         }
     }
 
