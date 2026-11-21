@@ -38,8 +38,8 @@ android {
         applicationId = "com.aletchec.traceit"
         minSdk = 24
         targetSdk = 37
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 7
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BUILD_DATE", "\"${getBuildDateTime()}\"")
