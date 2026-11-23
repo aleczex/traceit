@@ -577,16 +577,6 @@ fun TrackingScreen(
                                 ) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_schedule))
                                 }
-                                Spacer(modifier = Modifier.weight(1f))
-                                TextButton(onClick = {
-                                    val file = selectedFile ?: run {
-                                        val activeRange = scheduler.getActiveRange(scheduler.loadSchedules(context))
-                                        gpxManager.getGpxFile(activeRange)
-                                    }
-                                    trackPoints = gpxManager.getTrackPoints(file)
-                                }) {
-                                    Text(stringResource(R.string.refresh))
-                                }
                             }
 
                             LazyColumn(
