@@ -590,8 +590,6 @@ fun TrackingScreen(
                                     val copySuffix = stringResource(R.string.schedule_copy_suffix)
                                     ScheduleItem(
                                         range = range,
-                                        isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
-                                        isPickingEnd = pickingScheduleIndex == index && pickTarget == PickTarget.END,
                                         onOpenSettings = {
                                             editingSettingsScheduleIndex = index
                                             showSettingsDialog = true
@@ -604,38 +602,6 @@ fun TrackingScreen(
                                             val duplicatedRange = range.copy(name = range.name + copySuffix)
                                             ranges.add(index + 1, duplicatedRange)
                                             scheduler.saveSchedules(context, ranges)
-                                        },
-                                        onTogglePickStart = {
-                                            if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
-                                                pickingScheduleIndex = -1
-                                            } else {
-                                                pickingScheduleIndex = index
-                                                pickTarget = PickTarget.START
-                                                if (!isLandscape) {
-                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                                                }
-                                            }
-                                        },
-                                        onTogglePickEnd = {
-                                            if (pickingScheduleIndex == index && pickTarget == PickTarget.END) {
-                                                pickingScheduleIndex = -1
-                                            } else {
-                                                pickingScheduleIndex = index
-                                                pickTarget = PickTarget.END
-                                                if (!isLandscape) {
-                                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                                                }
-                                            }
-                                        },
-                                        onSetStartRadius = {
-                                            editingRadiusScheduleIndex = index
-                                            editingRadiusTarget = PickTarget.START
-                                            showRadiusDialog = true
-                                        },
-                                        onSetEndRadius = {
-                                            editingRadiusScheduleIndex = index
-                                            editingRadiusTarget = PickTarget.END
-                                            showRadiusDialog = true
                                         },
                                         modifier = Modifier.testTag("schedule_item")
                                     )
@@ -1524,15 +1490,9 @@ fun formatDays(days: Set<Int>, context: Context): String {
 @Composable
 fun ScheduleItem(
     range: TrackingScheduler.TimeRange,
-    isPickingStart: Boolean,
-    isPickingEnd: Boolean,
     onOpenSettings: () -> Unit,
     onDelete: () -> Unit,
     onCopy: () -> Unit,
-    onTogglePickStart: () -> Unit,
-    onTogglePickEnd: () -> Unit,
-    onSetStartRadius: (() -> Unit)? = null,
-    onSetEndRadius: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -1541,8 +1501,7 @@ fun ScheduleItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(
-                if (isPickingStart || isPickingEnd) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                else MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(8.dp)
             )
             .padding(12.dp),
@@ -1576,81 +1535,55 @@ fun ScheduleItem(
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val hasStart = range.startLat != null && range.startLon != null
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            if (isPickingStart) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                            else Color.Transparent
-                        )
-                        .clickable { onTogglePickStart() }
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = stringResource(R.string.start_point_desc),
-                        tint = if (hasStart) Color(0xFF2E7D32) else Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = if (hasStart) stringResource(R.string.start_radius_format, range.startRadiusMeters) else stringResource(R.string.start_not_set),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (hasStart || isPickingStart) Color(0xFF2E7D32) else Color.Gray
-                    )
-                }
 
-                if (hasStart && onSetStartRadius != null) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    TextButton(
-                        onClick = onSetStartRadius,
-                        modifier = Modifier.height(24.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text(stringResource(R.string.radius), style = MaterialTheme.typography.labelSmall)
+            val hasStart = range.startLat != null && range.startLon != null
+            val hasEnd = range.endLat != null && range.endLon != null
+
+            if (hasStart || hasEnd) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (hasStart) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = stringResource(R.string.start_point_desc),
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            val startText = if (range.startRadiusMeters > 0) {
+                                stringResource(R.string.start_radius_format, range.startRadiusMeters)
+                            } else {
+                                "Start"
+                            }
+                            Text(
+                                text = startText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                val hasEnd = range.endLat != null && range.endLon != null
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            if (isPickingEnd) MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
-                            else Color.Transparent
-                        )
-                        .clickable { onTogglePickEnd() }
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = stringResource(R.string.end_point_desc),
-                        tint = if (hasEnd) Color(0xFFC62828) else Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = if (hasEnd) stringResource(R.string.end_radius_format, range.endRadiusMeters) else stringResource(R.string.end_not_set),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (hasEnd || isPickingEnd) Color(0xFFC62828) else Color.Gray
-                    )
-                }
-
-                if (hasEnd && onSetEndRadius != null) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    TextButton(
-                        onClick = onSetEndRadius,
-                        modifier = Modifier.height(24.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text(stringResource(R.string.radius), style = MaterialTheme.typography.labelSmall)
+                    if (hasEnd) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = stringResource(R.string.end_point_desc),
+                                tint = Color(0xFFC62828),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            val endText = if (range.endRadiusMeters > 0) {
+                                stringResource(R.string.end_radius_format, range.endRadiusMeters)
+                            } else {
+                                "End"
+                            }
+                            Text(
+                                text = endText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFC62828)
+                            )
+                        }
                     }
                 }
             }
