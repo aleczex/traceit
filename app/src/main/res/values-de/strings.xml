@@ -156,11 +156,11 @@
     <string name="export_track_file">Track-Datei herunterladen / exportieren</string>
     <string name="download_unlocked_status">Downloads freigeschaltet (noch %s)</string>
     <string name="download_locked_status">Downloads gesperrt. Werbung ansehen, um für 1 Tag zu entsperren.</string>
-    <string name="watch_ad_to_download_title">Track-Download freischalten</string>
-    <string name="watch_ad_to_download_message">Durch das Ansehen einer kurzen Videoanzeige wird das Herunterladen und Exportieren gespeicherter Tracks für 24 Stunden freigeschaltet.</string>
+    <string name="watch_ad_to_download_title">Export &amp; Sharing freischalten</string>
+    <string name="watch_ad_to_download_message">Durch das Ansehen einer kurzen Videoanzeige werden der Download von Tracks sowie das Teilen und Drucken der Karte für 24 Stunden freigeschaltet.</string>
     <string name="watch_ad_btn">Werbung ansehen</string>
     <string name="ad_not_ready">Werbung wird noch geladen. Bitte versuchen Sie es gleich noch einmal.</string>
-    <string name="downloads_unlocked_toast">Downloads für 24 Stunden freigeschaltet!</string>
+    <string name="downloads_unlocked_toast">Downloads und Karten-Sharing für 24 Stunden freigeschaltet!</string>
     <string name="delete_track_file">Track-Datei löschen</string>
     <string name="delete_track_title">Track löschen?</string>
     <string name="delete_active_track_warning">Dies ist der aktuell aufgezeichnete Track (falls aktiv). Das Löschen stoppt die Aufzeichnung für den aktuellen Zeitplan, bis ein neuer Punkt aufgezeichnet wird. Sind Sie sicher?</string>

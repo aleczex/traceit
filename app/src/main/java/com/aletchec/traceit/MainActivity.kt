@@ -304,6 +304,24 @@ fun TrackingScreen(
     var showMenuDropdown by remember { mutableStateOf(false) }
     var showOptionsDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showAdDialog by remember { mutableStateOf(false) }
+    var rewardedAd by remember { mutableStateOf<RewardedAd?>(null) }
+    var pendingAdAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    LaunchedEffect(Unit) {
+        loadRewardedAd(context) { ad ->
+            rewardedAd = ad
+        }
+    }
+
+    val checkUnlockAndRun: (() -> Unit) -> Unit = { action ->
+        if (isDownloadUnlocked(context)) {
+            action()
+        } else {
+            pendingAdAction = action
+            showAdDialog = true
+        }
+    }
 
     val onPrivacyClick: () -> Unit = {
         val activity = context as? Activity
@@ -648,8 +666,10 @@ fun TrackingScreen(
                             }
                         },
                         onExportFile = { file ->
-                            fileToExport = file
-                            createDocumentLauncher.launch(file.name)
+                            checkUnlockAndRun {
+                                fileToExport = file
+                                createDocumentLauncher.launch(file.name)
+                            }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -955,25 +975,27 @@ fun TrackingScreen(
                                         },
                                         onClick = {
                                             showExportMenu = false
-                                            mapViewInstance?.let { map ->
-                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
-                                                try {
-                                                    val fileName = currentFile.name
-                                                    val bmp = MapExportUtils.generateAnnotatedMapBitmap(
-                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                    )
-                                                    if (bmp != null) {
-                                                        val file = java.io.File(context.cacheDir, "track_map_${System.currentTimeMillis()}.png")
-                                                        java.io.FileOutputStream(file).use { out ->
-                                                            bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                            checkUnlockAndRun {
+                                                mapViewInstance?.let { map ->
+                                                    val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                    try {
+                                                        val fileName = currentFile.name
+                                                        val bmp = MapExportUtils.generateAnnotatedMapBitmap(
+                                                            context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                        )
+                                                        if (bmp != null) {
+                                                            val file = java.io.File(context.cacheDir, "track_map_${System.currentTimeMillis()}.png")
+                                                            java.io.FileOutputStream(file).use { out ->
+                                                                bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                                            }
+                                                            imageFileToExport = file
+                                                            createImageDocLauncher.launch(fileName.replace(".gpx", ".png"))
+                                                        } else {
+                                                            Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
                                                         }
-                                                        imageFileToExport = file
-                                                        createImageDocLauncher.launch(fileName.replace(".gpx", ".png"))
-                                                    } else {
-                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                    } finally {
+                                                        restore.run()
                                                     }
-                                                } finally {
-                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -985,21 +1007,23 @@ fun TrackingScreen(
                                         },
                                         onClick = {
                                             showExportMenu = false
-                                            mapViewInstance?.let { map ->
-                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
-                                                try {
-                                                    val fileName = currentFile.name
-                                                    val pdfFile = MapExportUtils.generatePdf(
-                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                    )
-                                                    if (pdfFile != null) {
-                                                        pdfFileToExport = pdfFile
-                                                        createPdfDocLauncher.launch(fileName.replace(".gpx", ".pdf"))
-                                                    } else {
-                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                            checkUnlockAndRun {
+                                                mapViewInstance?.let { map ->
+                                                    val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                    try {
+                                                        val fileName = currentFile.name
+                                                        val pdfFile = MapExportUtils.generatePdf(
+                                                            context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                        )
+                                                        if (pdfFile != null) {
+                                                            pdfFileToExport = pdfFile
+                                                            createPdfDocLauncher.launch(fileName.replace(".gpx", ".pdf"))
+                                                        } else {
+                                                            Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } finally {
+                                                        restore.run()
                                                     }
-                                                } finally {
-                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -1011,20 +1035,22 @@ fun TrackingScreen(
                                         },
                                         onClick = {
                                             showExportMenu = false
-                                            mapViewInstance?.let { map ->
-                                                val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
-                                                try {
-                                                    val fileName = currentFile.name
-                                                    val pdfFile = MapExportUtils.generatePdf(
-                                                        context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
-                                                    )
-                                                    if (pdfFile != null) {
-                                                        MapExportUtils.printDocument(context, pdfFile, fileName)
-                                                    } else {
-                                                        Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                            checkUnlockAndRun {
+                                                mapViewInstance?.let { map ->
+                                                    val restore = MapExportUtils.prepareMapForExport(context, map, validTrackPoints)
+                                                    try {
+                                                        val fileName = currentFile.name
+                                                        val pdfFile = MapExportUtils.generatePdf(
+                                                            context, map, fileName, distanceStr, durationStr, startTimeStr, endTimeStr
+                                                        )
+                                                        if (pdfFile != null) {
+                                                            MapExportUtils.printDocument(context, pdfFile, fileName)
+                                                        } else {
+                                                            Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } finally {
+                                                        restore.run()
                                                     }
-                                                } finally {
-                                                    restore.run()
                                                 }
                                             }
                                         }
@@ -1456,6 +1482,52 @@ fun TrackingScreen(
                     }
                 ) {
                     Text(stringResource(R.string.permission_disclosure_cancel))
+                }
+            }
+        )
+    }
+
+    if (showAdDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAdDialog = false
+                pendingAdAction = null
+            },
+            title = { Text(stringResource(R.string.watch_ad_to_download_title)) },
+            text = { Text(stringResource(R.string.watch_ad_to_download_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val activity = context as? Activity
+                    val onRewarded = {
+                        setDownloadUnlockedForOneDay(context)
+                        Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
+                        showAdDialog = false
+                        val actionToRun = pendingAdAction
+                        pendingAdAction = null
+                        actionToRun?.invoke()
+                        loadRewardedAd(context) { ad -> rewardedAd = ad }
+                    }
+                    if (rewardedAd != null && activity != null) {
+                        rewardedAd?.show(activity) { _ -> onRewarded() }
+                    } else {
+                        Toast.makeText(context, R.string.ad_not_ready, Toast.LENGTH_SHORT).show()
+                        loadRewardedAd(context) { ad ->
+                            rewardedAd = ad
+                            if (ad != null && activity != null) {
+                                ad.show(activity) { _ -> onRewarded() }
+                            }
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.watch_ad_btn))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAdDialog = false
+                    pendingAdAction = null
+                }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -1946,9 +2018,6 @@ fun SavedTracksList(
 ) {
     var files by remember { mutableStateOf(emptyList<java.io.File>()) }
     var fileToDelete by remember { mutableStateOf<java.io.File?>(null) }
-    var fileToDownload by remember { mutableStateOf<java.io.File?>(null) }
-    var showAdDialog by remember { mutableStateOf(false) }
-    var rewardedAd by remember { mutableStateOf<RewardedAd?>(null) }
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -1958,9 +2027,6 @@ fun SavedTracksList(
 
     LaunchedEffect(Unit) {
         files = gpxManager.getAllGpxFiles()
-        loadRewardedAd(context) { ad ->
-            rewardedAd = ad
-        }
     }
 
     LaunchedEffect(selectedFile) {
@@ -2083,12 +2149,7 @@ fun SavedTracksList(
                                 Spacer(modifier = Modifier.width(4.dp))
 
                                 IconButton(onClick = {
-                                    if (isDownloadUnlocked(context)) {
-                                        onExportFile(file)
-                                    } else {
-                                        fileToDownload = file
-                                        showAdDialog = true
-                                    }
+                                    onExportFile(file)
                                 }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
                                     Icon(Icons.Default.SaveAlt, contentDescription = stringResource(R.string.export_track_file))
                                 }
@@ -2112,49 +2173,6 @@ fun SavedTracksList(
                 )
             }
         }
-    }
-
-    if (showAdDialog) {
-        AlertDialog(
-            onDismissRequest = { showAdDialog = false },
-            title = { Text(stringResource(R.string.watch_ad_to_download_title)) },
-            text = { Text(stringResource(R.string.watch_ad_to_download_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val activity = context as? Activity
-                    if (rewardedAd != null && activity != null) {
-                        rewardedAd?.show(activity) { _ ->
-                            setDownloadUnlockedForOneDay(context)
-                            Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
-                            showAdDialog = false
-                            fileToDownload?.let { onExportFile(it) }
-                            loadRewardedAd(context) { ad -> rewardedAd = ad }
-                        }
-                    } else {
-                        Toast.makeText(context, R.string.ad_not_ready, Toast.LENGTH_SHORT).show()
-                        loadRewardedAd(context) { ad ->
-                            rewardedAd = ad
-                            if (ad != null && activity != null) {
-                                ad.show(activity) { _ ->
-                                    setDownloadUnlockedForOneDay(context)
-                                    Toast.makeText(context, R.string.downloads_unlocked_toast, Toast.LENGTH_SHORT).show()
-                                    showAdDialog = false
-                                    fileToDownload?.let { onExportFile(it) }
-                                    loadRewardedAd(context) { loaded -> rewardedAd = loaded }
-                                }
-                            }
-                        }
-                    }
-                }) {
-                    Text(stringResource(R.string.watch_ad_btn))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAdDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
     }
 
     if (fileToDelete != null) {
