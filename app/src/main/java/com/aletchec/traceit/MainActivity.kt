@@ -1496,97 +1496,90 @@ fun ScheduleItem(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(8.dp)
-            )
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == ResConfiguration.ORIENTATION_LANDSCAPE
+
+    val detailsContent = @Composable {
+        Text(
+            text = range.name.ifBlank { stringResource(R.string.schedule_default_name) },
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = String.format(Locale.US, "%02d:%02d - %02d:%02d", range.startHour, range.startMinute, range.endHour, range.endMinute),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = range.name.ifBlank { stringResource(R.string.schedule_default_name) },
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = formatDays(range.daysOfWeek, context),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = String.format(Locale.US, "%02d:%02d - %02d:%02d", range.startHour, range.startMinute, range.endHour, range.endMinute),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                text = stringResource(R.string.interval_seconds_format, range.gpsIntervalSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
             )
+        }
+
+        val hasStart = range.startLat != null && range.startLon != null
+        val hasEnd = range.endLat != null && range.endLon != null
+
+        if (hasStart || hasEnd) {
             Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = formatDays(range.daysOfWeek, context),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.interval_seconds_format, range.gpsIntervalSeconds),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-
-            val hasStart = range.startLat != null && range.startLon != null
-            val hasEnd = range.endLat != null && range.endLon != null
-
-            if (hasStart || hasEnd) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (hasStart) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = stringResource(R.string.start_point_desc),
-                                tint = Color(0xFF2E7D32),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            val startText = if (range.startRadiusMeters > 0) {
-                                stringResource(R.string.start_radius_format, range.startRadiusMeters)
-                            } else {
-                                "Start"
-                            }
-                            Text(
-                                text = startText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF2E7D32)
-                            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (hasStart) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = stringResource(R.string.start_point_desc),
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        val startText = if (range.startRadiusMeters > 0) {
+                            stringResource(R.string.start_radius_format, range.startRadiusMeters)
+                        } else {
+                            "Start"
                         }
+                        Text(
+                            text = startText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF2E7D32)
+                        )
                     }
+                }
 
-                    if (hasEnd) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = stringResource(R.string.end_point_desc),
-                                tint = Color(0xFFC62828),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            val endText = if (range.endRadiusMeters > 0) {
-                                stringResource(R.string.end_radius_format, range.endRadiusMeters)
-                            } else {
-                                "End"
-                            }
-                            Text(
-                                text = endText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFC62828)
-                            )
+                if (hasEnd) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = stringResource(R.string.end_point_desc),
+                            tint = Color(0xFFC62828),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        val endText = if (range.endRadiusMeters > 0) {
+                            stringResource(R.string.end_radius_format, range.endRadiusMeters)
+                        } else {
+                            "End"
                         }
+                        Text(
+                            text = endText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFC62828)
+                        )
                     }
                 }
             }
         }
+    }
 
+    val actionButtons = @Composable {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onCopy) {
                 Icon(
@@ -1604,6 +1597,33 @@ fun ScheduleItem(
                     tint = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+
+    val containerModifier = modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp)
+        .background(
+            MaterialTheme.colorScheme.surfaceVariant,
+            RoundedCornerShape(8.dp)
+        )
+        .padding(12.dp)
+
+    if (isLandscape) {
+        Column(modifier = containerModifier) {
+            detailsContent()
+            Spacer(modifier = Modifier.height(4.dp))
+            actionButtons()
+        }
+    } else {
+        Row(
+            modifier = containerModifier,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                detailsContent()
+            }
+            actionButtons()
         }
     }
 }
