@@ -153,4 +153,19 @@ class TrackingSchedulerTest {
         assertEquals(10, modifiedRange.startHour)
         assertEquals(18, modifiedRange.endHour)
     }
+
+    @Test
+    fun testCopySchedule() {
+        val range = TrackingScheduler.TimeRange(8, 0, 16, 0, name = "Work")
+        val copySuffix = " - kopia"
+        val duplicated = range.copy(name = range.name + copySuffix)
+
+        assertEquals("Work - kopia", duplicated.name)
+        assertEquals(range.startHour, duplicated.startHour)
+        assertEquals(range.startMinute, duplicated.startMinute)
+        assertEquals(range.endHour, duplicated.endHour)
+        assertEquals(range.endMinute, duplicated.endMinute)
+        assertEquals(range.gpsIntervalSeconds, duplicated.gpsIntervalSeconds)
+        assertEquals(range.daysOfWeek, duplicated.daysOfWeek)
+    }
 }

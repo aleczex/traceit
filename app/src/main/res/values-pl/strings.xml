@@ -85,6 +85,8 @@
     <string name="clear_start">Wyczyść start</string>
     <string name="clear_end">Wyczyść koniec</string>
     <string name="delete_schedule">Usuń harmonogram</string>
+    <string name="copy_schedule">Kopiuj harmonogram</string>
+    <string name="schedule_copy_suffix"> - kopia</string>
     <string name="delete_schedule_title">Usunąć harmonogram?</string>
     <string name="delete_schedule_confirm">Czy na pewno chcesz trwale usunąć ten harmonogram?</string>
 

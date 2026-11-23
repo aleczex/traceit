@@ -85,6 +85,8 @@
     <string name="clear_start">Limpar início</string>
     <string name="clear_end">Limpar fim</string>
     <string name="delete_schedule">Excluir horário</string>
+    <string name="copy_schedule">Copiar horário</string>
+    <string name="schedule_copy_suffix"> - cópia</string>
     <string name="delete_schedule_title">Excluir horário?</string>
     <string name="delete_schedule_confirm">Tem certeza de que deseja excluir permanentemente este horário?</string>
 

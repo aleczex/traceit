@@ -85,6 +85,8 @@
     <string name="clear_start">Effacer départ</string>
     <string name="clear_end">Effacer arrivée</string>
     <string name="delete_schedule">Supprimer l\'horaire</string>
+    <string name="copy_schedule">Copier l\'horaire</string>
+    <string name="schedule_copy_suffix"> - copie</string>
     <string name="delete_schedule_title">Supprimer l\'horaire ?</string>
     <string name="delete_schedule_confirm">Êtes-vous sûr de vouloir supprimer définitivement cet horaire ?</string>
 

@@ -48,6 +48,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -585,6 +586,7 @@ fun TrackingScreen(
                                     .weight(1f)
                             ) {
                                 itemsIndexed(ranges) { index, range ->
+                                    val copySuffix = stringResource(R.string.schedule_copy_suffix)
                                     ScheduleItem(
                                         range = range,
                                         isPickingStart = pickingScheduleIndex == index && pickTarget == PickTarget.START,
@@ -596,6 +598,11 @@ fun TrackingScreen(
                                         onDelete = {
                                             deletingScheduleIndex = index
                                             showDeleteConfirmDialog = true
+                                        },
+                                        onCopy = {
+                                            val duplicatedRange = range.copy(name = range.name + copySuffix)
+                                            ranges.add(index + 1, duplicatedRange)
+                                            scheduler.saveSchedules(context, ranges)
                                         },
                                         onTogglePickStart = {
                                             if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
@@ -1509,6 +1516,7 @@ fun ScheduleItem(
     isPickingEnd: Boolean,
     onOpenSettings: () -> Unit,
     onDelete: () -> Unit,
+    onCopy: () -> Unit,
     onTogglePickStart: () -> Unit,
     onTogglePickEnd: () -> Unit,
     onSetStartRadius: (() -> Unit)? = null,
@@ -1637,6 +1645,12 @@ fun ScheduleItem(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onCopy) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.copy_schedule)
+                )
+            }
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.schedule_settings_desc))
             }
