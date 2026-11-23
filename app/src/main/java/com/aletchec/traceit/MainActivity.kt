@@ -286,6 +286,8 @@ fun TrackingScreen(
     // Schedule Settings Dialog State
     var showSettingsDialog by remember { mutableStateOf(false) }
     var editingSettingsScheduleIndex by remember { mutableIntStateOf(-1) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var deletingScheduleIndex by remember { mutableIntStateOf(-1) }
 
     var showDaysDialog by remember { mutableStateOf(false) }
     var editingDaysScheduleIndex by remember { mutableIntStateOf(-1) }
@@ -600,6 +602,10 @@ fun TrackingScreen(
                                         onOpenSettings = {
                                             editingSettingsScheduleIndex = index
                                             showSettingsDialog = true
+                                        },
+                                        onDelete = {
+                                            deletingScheduleIndex = index
+                                            showDeleteConfirmDialog = true
                                         },
                                         onTogglePickStart = {
                                             if (pickingScheduleIndex == index && pickTarget == PickTarget.START) {
@@ -1143,12 +1149,6 @@ fun TrackingScreen(
                 ranges[editingSettingsScheduleIndex] = updatedRange
                 scheduler.saveSchedules(context, ranges)
             },
-            onDelete = {
-                ranges.removeAt(editingSettingsScheduleIndex)
-                if (pickingScheduleIndex == editingSettingsScheduleIndex) pickingScheduleIndex = -1
-                scheduler.saveSchedules(context, ranges)
-                showSettingsDialog = false
-            },
             onPickStart = {
                 val targetIndex = editingSettingsScheduleIndex
                 editingSettingsScheduleIndex = -1
@@ -1200,6 +1200,33 @@ fun TrackingScreen(
             onClearEnd = {
                 ranges[editingSettingsScheduleIndex] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
                 scheduler.saveSchedules(context, ranges)
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog && deletingScheduleIndex in ranges.indices) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text(stringResource(R.string.delete_schedule_title)) },
+            text = { Text(stringResource(R.string.delete_schedule_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val targetIndex = deletingScheduleIndex
+                    if (targetIndex in ranges.indices) {
+                        ranges.removeAt(targetIndex)
+                        if (pickingScheduleIndex == targetIndex) pickingScheduleIndex = -1
+                        scheduler.saveSchedules(context, ranges)
+                    }
+                    showDeleteConfirmDialog = false
+                    deletingScheduleIndex = -1
+                }) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         )
     }
@@ -1491,6 +1518,7 @@ fun ScheduleItem(
     isPickingStart: Boolean,
     isPickingEnd: Boolean,
     onOpenSettings: () -> Unit,
+    onDelete: () -> Unit,
     onTogglePickStart: () -> Unit,
     onTogglePickEnd: () -> Unit,
     onSetStartRadius: (() -> Unit)? = null,
@@ -1618,8 +1646,17 @@ fun ScheduleItem(
             }
         }
 
-        IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.schedule_settings_desc))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.schedule_settings_desc))
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete_schedule),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
@@ -1629,7 +1666,6 @@ fun ScheduleSettingsDialog(
     range: TrackingScheduler.TimeRange,
     onDismiss: () -> Unit,
     onUpdate: (TrackingScheduler.TimeRange) -> Unit,
-    onDelete: () -> Unit,
     onPickStart: () -> Unit,
     onPickEnd: () -> Unit,
     onEditStart: () -> Unit,
@@ -1753,17 +1789,6 @@ fun ScheduleSettingsDialog(
                                 Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_end), modifier = Modifier.size(20.dp))
                             }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onDelete,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_schedule), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.delete_schedule))
                     }
                 }
             }

@@ -85,6 +85,8 @@
     <string name="clear_start">Effacer départ</string>
     <string name="clear_end">Effacer arrivée</string>
     <string name="delete_schedule">Supprimer l\'horaire</string>
+    <string name="delete_schedule_title">Supprimer l\'horaire ?</string>
+    <string name="delete_schedule_confirm">Êtes-vous sûr de vouloir supprimer définitivement cet horaire ?</string>
 
     <!-- Days Picker Dialog -->
     <string name="select_days_of_week">Sélectionner les jours de la semaine</string>

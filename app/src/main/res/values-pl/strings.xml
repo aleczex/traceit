@@ -85,6 +85,8 @@
     <string name="clear_start">Wyczyść start</string>
     <string name="clear_end">Wyczyść koniec</string>
     <string name="delete_schedule">Usuń harmonogram</string>
+    <string name="delete_schedule_title">Usunąć harmonogram?</string>
+    <string name="delete_schedule_confirm">Czy na pewno chcesz trwale usunąć ten harmonogram?</string>
 
     <!-- Days Picker Dialog -->
     <string name="select_days_of_week">Wybierz dni tygodnia</string>

@@ -85,6 +85,8 @@
     <string name="clear_start">Clear Start</string>
     <string name="clear_end">Clear End</string>
     <string name="delete_schedule">Delete Schedule</string>
+    <string name="delete_schedule_title">Delete Schedule?</string>
+    <string name="delete_schedule_confirm">Are you sure you want to permanently delete this schedule?</string>
 
     <!-- Days Picker Dialog -->
     <string name="select_days_of_week">Select Days of Week</string>

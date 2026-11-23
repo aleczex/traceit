@@ -85,6 +85,8 @@
     <string name="clear_start">Start löschen</string>
     <string name="clear_end">Ziel löschen</string>
     <string name="delete_schedule">Zeitplan löschen</string>
+    <string name="delete_schedule_title">Zeitplan löschen?</string>
+    <string name="delete_schedule_confirm">Sind Sie sicher, dass Sie diesen Zeitplan dauerhaft löschen möchten?</string>
 
     <!-- Days Picker Dialog -->
     <string name="select_days_of_week">Wochentage auswählen</string>
