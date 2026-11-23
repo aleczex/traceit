@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.rounded.HistoryEdu
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.core.app.ActivityCompat
@@ -1197,6 +1198,17 @@ fun TrackingScreen(
             onClearEnd = {
                 ranges[editingSettingsScheduleIndex] = range.copy(endLat = null, endLon = null, endRadiusMeters = 0)
                 scheduler.saveSchedules(context, ranges)
+            },
+            onSwapPoints = {
+                ranges[editingSettingsScheduleIndex] = range.copy(
+                    startLat = range.endLat,
+                    startLon = range.endLon,
+                    startRadiusMeters = range.endRadiusMeters,
+                    endLat = range.startLat,
+                    endLon = range.startLon,
+                    endRadiusMeters = range.startRadiusMeters
+                )
+                scheduler.saveSchedules(context, ranges)
             }
         )
     }
@@ -1680,6 +1692,7 @@ fun ScheduleSettingsDialog(
     onSetEndRadius: () -> Unit,
     onClearStart: () -> Unit,
     onClearEnd: () -> Unit,
+    onSwapPoints: () -> Unit,
 ) {
     var nameInput by remember { mutableStateOf(range.name) }
     val context = LocalContext.current
@@ -1763,6 +1776,20 @@ fun ScheduleSettingsDialog(
                                 Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_start), modifier = Modifier.size(20.dp))
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = onSwapPoints,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.swap_start_end))
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))

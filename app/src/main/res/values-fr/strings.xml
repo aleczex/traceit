@@ -81,6 +81,7 @@
     <string name="interval_btn">Intervalle: %ds</string>
     <string name="start_point_title">Point de départ</string>
     <string name="end_point_title">Point d\'arrivée</string>
+    <string name="swap_start_end">Échanger début et fin</string>
     <string name="not_set">Non défini</string>
     <string name="clear_start">Effacer départ</string>
     <string name="clear_end">Effacer arrivée</string>
