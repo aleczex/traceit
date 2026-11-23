@@ -1508,19 +1508,17 @@ fun ScheduleItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = range.name.ifBlank { stringResource(R.string.schedule_default_name) },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = String.format(Locale.US, "%02d:%02d - %02d:%02d", range.startHour, range.startMinute, range.endHour, range.endMinute),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            Text(
+                text = range.name.ifBlank { stringResource(R.string.schedule_default_name) },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = String.format(Locale.US, "%02d:%02d - %02d:%02d", range.startHour, range.startMinute, range.endHour, range.endMinute),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
