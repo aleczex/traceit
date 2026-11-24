@@ -165,6 +165,15 @@
     <string name="delete_track_title">Track löschen?</string>
     <string name="delete_active_track_warning">Dies ist der aktuell aufgezeichnete Track (falls aktiv). Das Löschen stoppt die Aufzeichnung für den aktuellen Zeitplan, bis ein neuer Punkt aufgezeichnet wird. Sind Sie sicher?</string>
     <string name="delete_track_confirm">Sind Sie sicher, dass Sie diese Track-Datei dauerhaft löschen möchten?</string>
+    <string name="crop_start">Start beschneiden</string>
+    <string name="crop_end">Ende beschneiden</string>
+    <string name="crop_start_title">Track vom Start beschneiden</string>
+    <string name="crop_end_title">Track vom Ende beschneiden</string>
+    <string name="crop_point_info">Punkt %1$d von %2$d</string>
+    <string name="track_cropped_successfully">Track erfolgreich beschnitten</string>
+    <string name="track_too_short_to_crop">Track ist zu kurz zum Beschneiden</string>
+    <string name="apply">Anwenden</string>
+    <string name="new_crop_point">Neuer Grenzpunkt</string>
     <string name="track_saved_successfully">Track erfolgreich gespeichert</string>
     <string name="failed_to_save_track">Speichern des Tracks fehlgeschlagen: %s</string>
 

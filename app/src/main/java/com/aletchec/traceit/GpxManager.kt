@@ -185,4 +185,29 @@ class GpxManager(private val context: Context) {
             return timeStr.replace("T", " ").replace("Z", "")
         }
     }
+
+    fun saveTrackPoints(file: File, points: List<TrackPoint>) {
+        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val sb = StringBuilder()
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        sb.append("<gpx version=\"1.1\" creator=\"TraceIt\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
+        sb.append("  <trk>\n")
+        sb.append("    <name>Track $dateStr</name>\n")
+        sb.append("    <trkseg>\n")
+        for (pt in points) {
+            sb.append("      <trkpt lat=\"${pt.latitude}\" lon=\"${pt.longitude}\">\n")
+            sb.append("        <ele>${pt.elevation}</ele>\n")
+            sb.append("        <time>${pt.time}</time>\n")
+            if (pt.isIgnored) {
+                sb.append("        <desc>ignored</desc>\n")
+            }
+            sb.append("      </trkpt>\n")
+        }
+        sb.append("    </trkseg>\n")
+        sb.append("  </trk>\n")
+        sb.append("</gpx>\n")
+
+        file.writeText(sb.toString())
+        invalidateCache(file)
+    }
 }

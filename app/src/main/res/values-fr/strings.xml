@@ -165,6 +165,15 @@
     <string name="delete_track_title">Supprimer la trace ?</string>
     <string name="delete_active_track_warning">Il s\'agit de la trace actuellement enregistrée (si active). La supprimer arrêtera l\'enregistrement jusqu\'à ce qu\'un nouveau point soit enregistré. Êtes-vous sûr ?</string>
     <string name="delete_track_confirm">Êtes-vous sûr de vouloir supprimer définitivement ce fichier de trace ?</string>
+    <string name="crop_start">Rogner le début</string>
+    <string name="crop_end">Rogner la fin</string>
+    <string name="crop_start_title">Rogner la trace depuis le début</string>
+    <string name="crop_end_title">Rogner la trace depuis la fin</string>
+    <string name="crop_point_info">Point %1$d sur %2$d</string>
+    <string name="track_cropped_successfully">Trace rognée avec succès</string>
+    <string name="track_too_short_to_crop">La trace est trop courte pour être rognée</string>
+    <string name="apply">Appliquer</string>
+    <string name="new_crop_point">Nouveau point limite</string>
     <string name="track_saved_successfully">Trace enregistrée avec succès</string>
     <string name="failed_to_save_track">Échec de l\'enregistrement de la trace: %s</string>
 

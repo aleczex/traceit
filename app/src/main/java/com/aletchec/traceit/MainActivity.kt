@@ -49,6 +49,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -68,6 +69,7 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.rounded.HistoryEdu
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.core.app.ActivityCompat
+import kotlin.math.roundToInt
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -89,6 +91,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -148,6 +152,15 @@ import java.util.Locale
 import androidx.core.content.edit
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.core.graphics.createBitmap
+
+enum class CropType { START, END }
+
+data class CropState(
+    val file: java.io.File,
+    val type: CropType,
+    val originalPoints: List<GpxManager.TrackPoint>,
+    val cutIndex: Int
+)
 
 enum class PickTarget { START, END }
 
@@ -342,6 +355,7 @@ fun TrackingScreen(
     var selectedFilePath by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedFile = remember(selectedFilePath) { selectedFilePath?.let { java.io.File(it) } }
     var fileToExport by remember { mutableStateOf<java.io.File?>(null) }
+    var cropState by remember { mutableStateOf<CropState?>(null) }
 
     val failedToSaveTrackFormat = stringResource(R.string.failed_to_save_track)
     val exportFailedFormat = stringResource(R.string.export_failed)
@@ -701,6 +715,25 @@ fun TrackingScreen(
                                 createDocumentLauncher.launch(file.name)
                             }
                         },
+                        onCropFile = { file, cropType ->
+                            val validPts = gpxManager.getTrackPoints(file).filter { !it.isIgnored }
+                            if (validPts.size < 2) {
+                                Toast.makeText(context, R.string.track_too_short_to_crop, Toast.LENGTH_SHORT).show()
+                            } else {
+                                selectedFilePath = file.absolutePath
+                                trackPoints = gpxManager.getTrackPoints(file)
+                                val initialIdx = if (cropType == CropType.START) 0 else validPts.lastIndex
+                                cropState = CropState(
+                                    file = file,
+                                    type = cropType,
+                                    originalPoints = validPts,
+                                    cutIndex = initialIdx
+                                )
+                                if (!isLandscape) {
+                                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                }
+                            }
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -723,6 +756,7 @@ fun TrackingScreen(
                 ranges = ranges,
                 pickingScheduleIndex = pickingScheduleIndex,
                 selectedFilePath = selectedFilePath,
+                cropState = cropState,
                 onPointSelectedOnMap = { point ->
                     if (pickingScheduleIndex in ranges.indices) {
                         val targetIndex = pickingScheduleIndex
@@ -794,7 +828,7 @@ fun TrackingScreen(
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 16.dp),
+                    .padding(end = 16.dp, bottom = if (cropState != null) 200.dp else 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -885,6 +919,87 @@ fun TrackingScreen(
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(Icons.Default.MyLocation, contentDescription = stringResource(R.string.show_current_gps_location))
+                }
+            }
+
+            if (cropState != null) {
+                val currentCrop = cropState!!
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 6.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (currentCrop.type == CropType.START)
+                                    stringResource(R.string.crop_start_title)
+                                else
+                                    stringResource(R.string.crop_end_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.crop_point_info, currentCrop.cutIndex + 1, currentCrop.originalPoints.size),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val maxIdx = (currentCrop.originalPoints.size - 1).coerceAtLeast(0)
+                        Slider(
+                            value = currentCrop.cutIndex.toFloat(),
+                            onValueChange = { newValue ->
+                                val newIdx = newValue.roundToInt().coerceIn(0, maxIdx)
+                                cropState = currentCrop.copy(cutIndex = newIdx)
+                            },
+                            valueRange = 0f..maxIdx.toFloat(),
+                            steps = if (maxIdx > 1) maxIdx - 1 else 0,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { cropState = null }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(onClick = {
+                                val activeCrop = cropState ?: return@Button
+                                val kept = if (activeCrop.type == CropType.START) {
+                                    activeCrop.originalPoints.subList(activeCrop.cutIndex, activeCrop.originalPoints.size)
+                                } else {
+                                    activeCrop.originalPoints.subList(0, activeCrop.cutIndex + 1)
+                                }
+                                gpxManager.saveTrackPoints(activeCrop.file, kept)
+                                trackPoints = gpxManager.getTrackPoints(activeCrop.file)
+                                cropState = null
+                                Toast.makeText(context, R.string.track_cropped_successfully, Toast.LENGTH_SHORT).show()
+                            }) {
+                                Text(stringResource(R.string.apply))
+                            }
+                        }
+                    }
                 }
             }
 
@@ -2083,6 +2198,7 @@ fun SavedTracksList(
     onSelectFile: (java.io.File) -> Unit,
     onDeleteFile: (java.io.File) -> Unit,
     onExportFile: (java.io.File) -> Unit,
+    onCropFile: (java.io.File, CropType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var files by remember { mutableStateOf(emptyList<java.io.File>()) }
@@ -2227,6 +2343,32 @@ fun SavedTracksList(
 
                                 Spacer(modifier = Modifier.width(4.dp))
 
+                                if (!isActiveFile) {
+                                    IconButton(onClick = {
+                                        onCropFile(file, CropType.START)
+                                    }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
+                                        Icon(
+                                            Icons.Default.ContentCut,
+                                            contentDescription = stringResource(R.string.crop_start),
+                                            tint = Color(0xFF2E7D32)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    IconButton(onClick = {
+                                        onCropFile(file, CropType.END)
+                                    }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
+                                        Icon(
+                                            Icons.Default.ContentCut,
+                                            contentDescription = stringResource(R.string.crop_end),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+
                                 IconButton(onClick = {
                                     onExportFile(file)
                                 }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
@@ -2340,6 +2482,7 @@ fun TrackMap(
     ranges: List<TrackingScheduler.TimeRange>,
     pickingScheduleIndex: Int,
     selectedFilePath: String? = null,
+    cropState: CropState? = null,
     onPointSelectedOnMap: (GeoPoint) -> Unit,
     onMapReady: (MapView) -> Unit = {},
     onMapMovingChanged: (Boolean) -> Unit = {},
@@ -2357,6 +2500,7 @@ fun TrackMap(
     val scheduleEndMarkerTitleFormat = stringResource(R.string.schedule_end_marker_title)
     val startMarkerTitle = stringResource(R.string.start_marker_title)
     val latestPositionMarkerTitle = stringResource(R.string.latest_position_marker_title)
+    val newCropPointTitle = stringResource(R.string.new_crop_point)
 
     AndroidView(
         factory = { ctx ->
@@ -2473,44 +2617,97 @@ fun TrackMap(
                 }
             }
 
-            val validPoints = points.filter { !it.isIgnored }
-            if (validPoints.isNotEmpty()) {
-                val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
+            if (cropState != null && cropState.originalPoints.isNotEmpty()) {
+                val orig = cropState.originalPoints
+                val cutIdx = cropState.cutIndex.coerceIn(0, orig.lastIndex)
 
-                val polyline = Polyline().apply {
-                    setPoints(geoPoints)
-                    outlinePaint.color = android.graphics.Color.BLUE
-                    outlinePaint.strokeWidth = 5f
+                val keptPoints = if (cropState.type == CropType.START) {
+                    orig.subList(cutIdx, orig.size)
+                } else {
+                    orig.subList(0, cutIdx + 1)
                 }
-                map.overlays.add(polyline)
 
-                val startMarker = Marker(map).apply {
-                    position = geoPoints.first()
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = startMarkerTitle
-                    icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
-                        setTint(android.graphics.Color.GREEN)
+                val trimmedPoints = if (cropState.type == CropType.START) {
+                    orig.subList(0, cutIdx + 1)
+                } else {
+                    orig.subList(cutIdx, orig.size)
+                }
+
+                if (trimmedPoints.size >= 2) {
+                    val trimmedGeo = trimmedPoints.map { GeoPoint(it.latitude, it.longitude) }
+                    val grayPolyline = Polyline().apply {
+                        setPoints(trimmedGeo)
+                        outlinePaint.color = android.graphics.Color.GRAY
+                        outlinePaint.strokeWidth = 5f
                     }
+                    map.overlays.add(grayPolyline)
                 }
-                map.overlays.add(startMarker)
 
-                val endMarker = Marker(map).apply {
-                    position = geoPoints.last()
+                if (keptPoints.size >= 2) {
+                    val keptGeo = keptPoints.map { GeoPoint(it.latitude, it.longitude) }
+                    val bluePolyline = Polyline().apply {
+                        setPoints(keptGeo)
+                        outlinePaint.color = android.graphics.Color.BLUE
+                        outlinePaint.strokeWidth = 5f
+                    }
+                    map.overlays.add(bluePolyline)
+                }
+
+                val boundaryPt = orig[cutIdx]
+                val boundaryGeo = GeoPoint(boundaryPt.latitude, boundaryPt.longitude)
+                val boundaryMarker = Marker(map).apply {
+                    position = boundaryGeo
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = latestPositionMarkerTitle
+                    title = newCropPointTitle
                     icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
                         setTint(android.graphics.Color.RED)
                     }
                 }
-                map.overlays.add(endMarker)
+                map.overlays.add(boundaryMarker)
 
-                if (!hasCenteredInitially) {
-                    hasCenteredInitially = true
-                    val lastPoint = geoPoints.last()
-                    savedCenterLat = lastPoint.latitude
-                    savedCenterLon = lastPoint.longitude
-                    map.post {
-                        map.controller.setCenter(lastPoint)
+                savedCenterLat = boundaryGeo.latitude
+                savedCenterLon = boundaryGeo.longitude
+                map.controller.setCenter(boundaryGeo)
+            } else {
+                val validPoints = points.filter { !it.isIgnored }
+                if (validPoints.isNotEmpty()) {
+                    val geoPoints = validPoints.map { GeoPoint(it.latitude, it.longitude) }
+
+                    val polyline = Polyline().apply {
+                        setPoints(geoPoints)
+                        outlinePaint.color = android.graphics.Color.BLUE
+                        outlinePaint.strokeWidth = 5f
+                    }
+                    map.overlays.add(polyline)
+
+                    val startMarker = Marker(map).apply {
+                        position = geoPoints.first()
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = startMarkerTitle
+                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                            setTint(android.graphics.Color.GREEN)
+                        }
+                    }
+                    map.overlays.add(startMarker)
+
+                    val endMarker = Marker(map).apply {
+                        position = geoPoints.last()
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = latestPositionMarkerTitle
+                        icon = ContextCompat.getDrawable(context, org.osmdroid.library.R.drawable.marker_default)?.mutate()?.apply {
+                            setTint(android.graphics.Color.RED)
+                        }
+                    }
+                    map.overlays.add(endMarker)
+
+                    if (!hasCenteredInitially) {
+                        hasCenteredInitially = true
+                        val lastPoint = geoPoints.last()
+                        savedCenterLat = lastPoint.latitude
+                        savedCenterLon = lastPoint.longitude
+                        map.post {
+                            map.controller.setCenter(lastPoint)
+                        }
                     }
                 }
             }

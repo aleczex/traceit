@@ -165,6 +165,15 @@
     <string name="delete_track_title">Excluir trajeto?</string>
     <string name="delete_active_track_warning">Este é o trajeto sendo gravado atualmente (se ativo). Excluí-lo interromperá a gravação para o horário atual até que um novo ponto seja gravado. Tem certeza?</string>
     <string name="delete_track_confirm">Tem certeza de que deseja excluir permanentemente este arquivo de trajeto?</string>
+    <string name="crop_start">Cortar início</string>
+    <string name="crop_end">Cortar fim</string>
+    <string name="crop_start_title">Cortar trajeto a partir do início</string>
+    <string name="crop_end_title">Cortar trajeto a partir do fim</string>
+    <string name="crop_point_info">Ponto %1$d de %2$d</string>
+    <string name="track_cropped_successfully">Trajeto cortado com sucesso</string>
+    <string name="track_too_short_to_crop">O trajeto é curto demais para cortar</string>
+    <string name="apply">Aplicar</string>
+    <string name="new_crop_point">Novo ponto limite</string>
     <string name="track_saved_successfully">Trajeto salvo com sucesso</string>
     <string name="failed_to_save_track">Falha ao salvar trajeto: %s</string>
 

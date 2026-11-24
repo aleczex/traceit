@@ -165,6 +165,15 @@
     <string name="delete_track_title">Usunąć ślad?</string>
     <string name="delete_active_track_warning">To jest ślad obecnie nagrywany (jeśli jest aktywny). Usunięcie go zatrzyma rejestrowanie dla bieżącego harmonogramu, dopóki nie zostanie zapisany nowy punkt. Czy na pewno?</string>
     <string name="delete_track_confirm">Czy na pewno chcesz trwale usunąć ten plik śladu?</string>
+    <string name="crop_start">Przytnij początek</string>
+    <string name="crop_end">Przytnij koniec</string>
+    <string name="crop_start_title">Przycinanie od początku</string>
+    <string name="crop_end_title">Przycinanie od końca</string>
+    <string name="crop_point_info">Punkt %1$d z %2$d</string>
+    <string name="track_cropped_successfully">Ślad został pomyślnie przycięty</string>
+    <string name="track_too_short_to_crop">Ślad jest za krótki do przycięcia</string>
+    <string name="apply">Zastosuj</string>
+    <string name="new_crop_point">Nowy punkt graniczny</string>
     <string name="track_saved_successfully">Ślad został pomyślnie zapisany</string>
     <string name="failed_to_save_track">Nie udało się zapisać śladu: %s</string>
 

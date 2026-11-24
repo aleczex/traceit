@@ -165,6 +165,15 @@
     <string name="delete_track_title">¿Eliminar ruta?</string>
     <string name="delete_active_track_warning">Esta es la ruta que se está grabando actualmente (si está activa). Eliminarla detendrá la grabación para el horario actual hasta que se grabe un nuevo punto. ¿Estás seguro?</string>
     <string name="delete_track_confirm">¿Estás seguro de que deseas eliminar permanentemente este archivo de ruta?</string>
+    <string name="crop_start">Recortar inicio</string>
+    <string name="crop_end">Recortar final</string>
+    <string name="crop_start_title">Recortar ruta desde el inicio</string>
+    <string name="crop_end_title">Recortar ruta desde el final</string>
+    <string name="crop_point_info">Punto %1$d de %2$d</string>
+    <string name="track_cropped_successfully">Ruta recortada con éxito</string>
+    <string name="track_too_short_to_crop">La ruta es demasiado corta para recortar</string>
+    <string name="apply">Aplicar</string>
+    <string name="new_crop_point">Nuevo punto límite</string>
     <string name="track_saved_successfully">Ruta guardada correctamente</string>
     <string name="failed_to_save_track">Error al guardar la ruta: %s</string>
 
