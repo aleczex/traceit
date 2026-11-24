@@ -2095,11 +2095,21 @@ fun SavedTracksList(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     LaunchedEffect(Unit) {
-        files = gpxManager.getAllGpxFiles()
+        val loadedFiles = withContext(Dispatchers.IO) {
+            val allFiles = gpxManager.getAllGpxFiles()
+            allFiles.forEach { gpxManager.getTrackStatistics(it) }
+            allFiles
+        }
+        files = loadedFiles
     }
 
     LaunchedEffect(selectedFile) {
-        files = gpxManager.getAllGpxFiles()
+        val loadedFiles = withContext(Dispatchers.IO) {
+            val allFiles = gpxManager.getAllGpxFiles()
+            allFiles.forEach { gpxManager.getTrackStatistics(it) }
+            allFiles
+        }
+        files = loadedFiles
     }
 
     LaunchedEffect(selectedFile, files) {
@@ -2126,7 +2136,7 @@ fun SavedTracksList(
                     state = listState,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(files) { file ->
+                    items(items = files, key = { it.absolutePath }) { file ->
                         val activeRange = scheduler.getActiveRange(ranges)
                         val activeFile = gpxManager.getGpxFile(activeRange)
                         val isLoaded = file == selectedFile
@@ -2185,7 +2195,7 @@ fun SavedTracksList(
                                         }
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    val stats = remember(file) { gpxManager.getTrackStatistics(file) }
+                                    val stats = remember(file.absolutePath, file.lastModified(), file.length()) { gpxManager.getTrackStatistics(file) }
                                     Text(
                                         text = stringResource(R.string.duration_distance_format, gpxManager.formatDuration(stats.durationMillis), gpxManager.formatDistance(stats.distanceMeters)),
                                         style = MaterialTheme.typography.bodySmall,
@@ -2262,6 +2272,7 @@ fun SavedTracksList(
                 TextButton(
                     onClick = {
                         val file = fileToDelete!!
+                        gpxManager.invalidateCache(file)
                         file.delete()
                         files = gpxManager.getAllGpxFiles()
                         onDeleteFile(file)

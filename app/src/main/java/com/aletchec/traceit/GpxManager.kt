@@ -62,6 +62,22 @@ class GpxManager(private val context: Context) {
         }
     }
 
+    private data class CacheEntry(
+        val lastModified: Long,
+        val length: Long,
+        val statistics: TrackStatistics
+    )
+
+    private val statsCache = java.util.concurrent.ConcurrentHashMap<String, CacheEntry>()
+
+    fun invalidateCache(file: File) {
+        statsCache.remove(file.absolutePath)
+    }
+
+    fun clearCache() {
+        statsCache.clear()
+    }
+
     fun appendLocation(file: File, location: Location) {
         if (!file.exists()) {
             initGpxFile(file)
@@ -78,6 +94,7 @@ class GpxManager(private val context: Context) {
 
         val newContent = content.replace("</trkseg>", point)
         file.writeText(newContent)
+        invalidateCache(file)
     }
 
     fun getTrackPoints(file: File): List<TrackPoint> {
@@ -99,8 +116,21 @@ class GpxManager(private val context: Context) {
     }
 
     fun getTrackStatistics(file: File): TrackStatistics {
+        if (!file.exists()) return TrackStatistics(0L, 0f)
+
+        val lastMod = file.lastModified()
+        val len = file.length()
+        val cached = statsCache[file.absolutePath]
+        if (cached != null && cached.lastModified == lastMod && cached.length == len) {
+            return cached.statistics
+        }
+
         val points = getTrackPoints(file).filter { !it.isIgnored }
-        if (points.isEmpty()) return TrackStatistics(0L, 0f)
+        if (points.isEmpty()) {
+            val emptyStats = TrackStatistics(0L, 0f)
+            statsCache[file.absolutePath] = CacheEntry(lastMod, len, emptyStats)
+            return emptyStats
+        }
 
         var totalDistance = 0f
         for (i in 0 until points.size - 1) {
@@ -119,7 +149,9 @@ class GpxManager(private val context: Context) {
             0L
         }
 
-        return TrackStatistics(durationMillis, totalDistance)
+        val computedStats = TrackStatistics(durationMillis, totalDistance)
+        statsCache[file.absolutePath] = CacheEntry(lastMod, len, computedStats)
+        return computedStats
     }
 
     fun formatDuration(durationMillis: Long): String {
