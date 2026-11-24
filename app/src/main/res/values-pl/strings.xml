@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Wymagana lokalizacja w tle</string>
     <string name="background_location_warning_message">Twoje uprawnienie do lokalizacji jest obecnie ustawione na \'Tylko w czasie działania aplikacji\'. Aby śledzenie w tle działało poprawnie i rejestrowało punkty GPS, gdy aplikacja jest zamknięta, zmień uprawnienie do lokalizacji na \'Zawsze\' (\'Allow all the time\').</string>
-    <string name="grant_always_permission">Otwórz ustawienia</string>
+    <string name="grant_always_permission">Przyznaj uprawnienie \'Zawsze\'</string>
 </resources>

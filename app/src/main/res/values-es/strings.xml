@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Ubicación en segundo plano requerida</string>
     <string name="background_location_warning_message">Tu permiso de ubicación está configurado actualmente como \'Solo mientras la aplicación esté abierta\'. Para que el seguimiento programado en segundo plano funcione correctamente, cambia el permiso de ubicación a \'Permitir todo el tiempo\'.</string>
-    <string name="grant_always_permission">Abrir configuración</string>
+    <string name="grant_always_permission">Conceder permiso \'Siempre\'</string>
 </resources>

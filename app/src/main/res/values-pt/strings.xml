@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Localização em segundo plano necessária</string>
     <string name="background_location_warning_message">Sua permissão de localização está configurada atualmente como \'Durante o uso do app\'. Para que o rastreamento agendado em segundo plano funcione corretamente, altere a permissão de localização para \'Permitir o tempo todo\'.</string>
-    <string name="grant_always_permission">Abrir configurações</string>
+    <string name="grant_always_permission">Conceder permissão \'Sempre\'</string>
 </resources>

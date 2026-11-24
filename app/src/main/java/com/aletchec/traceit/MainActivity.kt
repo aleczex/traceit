@@ -463,6 +463,16 @@ fun TrackingScreen(
         }
     }
 
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(context, R.string.track_saved_successfully, Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, R.string.location_permission_required, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     var showPermissionDisclosureDialog by remember { mutableStateOf(false) }
     var pendingPermissionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showBackgroundLocationWarning by remember { mutableStateOf(false) }
@@ -1515,13 +1525,24 @@ fun TrackingScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showBackgroundLocationWarning = false
-                    try {
-                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = android.net.Uri.parse("package:${context.packageName}")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        try {
+                            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        } catch (_: Exception) {
+                            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(context, e.message ?: "Failed to open settings", Toast.LENGTH_SHORT).show()
+                    } else {
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, e.message ?: "Failed to open settings", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }) {
                     Text(stringResource(R.string.grant_always_permission))

@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Localisation en arrière-plan requise</string>
     <string name="background_location_warning_message">Votre autorisation de localisation est actuellement définie sur \'Uniquement lors de l\'utilisation de l\'application\'. Pour que le suivi en arrière-plan fonctionne correctement, veuillez modifier l\'autorisation de localisation sur \'Toujours autoriser\'.</string>
-    <string name="grant_always_permission">Ouvrir les paramètres</string>
+    <string name="grant_always_permission">Accorder l\'autorisation \'Toujours\'</string>
 </resources>

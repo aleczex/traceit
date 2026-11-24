@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Background Location Required</string>
     <string name="background_location_warning_message">Your location permission is currently set to \'While using the app\'. For scheduled tracking in the background to work correctly and record GPS points when the app is closed, please change location permission to \'Allow all the time\' (\'Always\').</string>
-    <string name="grant_always_permission">Open Settings / Grant Always</string>
+    <string name="grant_always_permission">Grant \'Always\' Permission</string>
 </resources>

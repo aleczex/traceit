@@ -223,5 +223,5 @@
     <!-- Background Location Warning -->
     <string name="background_location_warning_title">Hintergrundstandort erforderlich</string>
     <string name="background_location_warning_message">Ihre Standortberechtigung ist derzeit auf \'Nur in der App\' eingestellt. Damit das zeitgesteuerte Tracking im Hintergrund ordnungsgemäß funktioniert, ändern Sie bitte die Standortberechtigung in \'Immer zulassen\'.</string>
-    <string name="grant_always_permission">Einstellungen öffnen</string>
+    <string name="grant_always_permission">Berechtigung \'Immer\' erteilen</string>
 </resources>
