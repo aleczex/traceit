@@ -219,4 +219,9 @@
     <string name="permission_disclosure_message">TraceIt führt während Ihrer geplanten Tracking-Zeiten Hintergrund-Tracking-Dienste aus. Um ordnungsgemäß zu funktionieren, benötigt die App folgende Berechtigungen:\n\n• Genauer &amp; Ungefährer Standort: Zum Verfolgen Ihrer Route und Aufzeichnen von GPX-Punkten.\n• Körperliche Aktivität: Zur Erkennung von Bewegungen und Optimierung des Hintergrund-Trackings sowie der Batterienutzung.\n• Benachrichtigungen: Zum Anzeigen einer dauerhaften Dienstbenachrichtigung für den Hintergrund- und Vordergrunddienst.\n\nStimmen Sie der Erteilung dieser Berechtigungen zu?</string>
     <string name="permission_disclosure_agree">Einverstanden</string>
     <string name="permission_disclosure_cancel">Abbrechen</string>
+
+    <!-- Background Location Warning -->
+    <string name="background_location_warning_title">Hintergrundstandort erforderlich</string>
+    <string name="background_location_warning_message">Ihre Standortberechtigung ist derzeit auf \'Nur in der App\' eingestellt. Damit das zeitgesteuerte Tracking im Hintergrund ordnungsgemäß funktioniert, ändern Sie bitte die Standortberechtigung in \'Immer zulassen\'.</string>
+    <string name="grant_always_permission">Einstellungen öffnen</string>
 </resources>

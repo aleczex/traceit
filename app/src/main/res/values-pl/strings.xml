@@ -219,4 +219,9 @@
     <string name="permission_disclosure_message">TraceIt uruchamia usługi śledzenia w tle podczas zaplanowanych godzin lub aktywnych sesji. Aby działać poprawnie, aplikacja wymaga następujących uprawnień:\n\n• Dokładna i przybliżona lokalizacja: Do śledzenia trasy i zapisywania punktów GPX.\n• Aktywność fizyczna: Do wykrywania ruchu oraz optymalizacji śledzenia w tle i zużycia baterii.\n• Powiadomienia: Do wyświetlania powiadomienia wymaganego dla działania serwisu w tle i pierwszego planu (Foreground Service).\n\nCzy wyrażasz zgodę na przyznanie tych uprawnień?</string>
     <string name="permission_disclosure_agree">Wyrażam zgodę</string>
     <string name="permission_disclosure_cancel">Anuluj</string>
+
+    <!-- Background Location Warning -->
+    <string name="background_location_warning_title">Wymagana lokalizacja w tle</string>
+    <string name="background_location_warning_message">Twoje uprawnienie do lokalizacji jest obecnie ustawione na \'Tylko w czasie działania aplikacji\'. Aby śledzenie w tle działało poprawnie i rejestrowało punkty GPS, gdy aplikacja jest zamknięta, zmień uprawnienie do lokalizacji na \'Zawsze\' (\'Allow all the time\').</string>
+    <string name="grant_always_permission">Otwórz ustawienia</string>
 </resources>

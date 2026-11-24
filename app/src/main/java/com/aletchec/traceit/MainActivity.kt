@@ -465,6 +465,7 @@ fun TrackingScreen(
 
     var showPermissionDisclosureDialog by remember { mutableStateOf(false) }
     var pendingPermissionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showBackgroundLocationWarning by remember { mutableStateOf(false) }
 
     // Periodically fetch logged points and update status
     LaunchedEffect(selectedFile, ranges.size) {
@@ -474,6 +475,14 @@ fun TrackingScreen(
 
             val allGranted = permissionsToRequest.all {
                 ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+            val hasBackgroundLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+            if (isAllowed && allGranted && !hasBackgroundLocation) {
+                showBackgroundLocationWarning = true
             }
             if (isAllowed && allGranted) {
                 val intent = Intent(context, LocationService::class.java).apply {
@@ -585,9 +594,17 @@ fun TrackingScreen(
                                         val allGranted = permissionsToRequest.all {
                                             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
                                         }
+                                        val hasBg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+                                        } else {
+                                            true
+                                        }
                                         if (allGranted) {
                                             ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
                                             scheduler.saveSchedules(context, ranges)
+                                            if (!hasBg) {
+                                                showBackgroundLocationWarning = true
+                                            }
                                         } else {
                                             pendingPermissionAction = {
                                                 ranges.add(TrackingScheduler.TimeRange(9, 0, 17, 0, name = defaultScheduleName))
@@ -1485,6 +1502,34 @@ fun TrackingScreen(
                     }
                 ) {
                     Text(stringResource(R.string.permission_disclosure_cancel))
+                }
+            }
+        )
+    }
+
+    if (showBackgroundLocationWarning) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundLocationWarning = false },
+            title = { Text(stringResource(R.string.background_location_warning_title)) },
+            text = { Text(stringResource(R.string.background_location_warning_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBackgroundLocationWarning = false
+                    try {
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.parse("package:${context.packageName}")
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, e.message ?: "Failed to open settings", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Text(stringResource(R.string.grant_always_permission))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackgroundLocationWarning = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

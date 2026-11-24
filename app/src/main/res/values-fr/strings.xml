@@ -219,4 +219,9 @@
     <string name="permission_disclosure_message">TraceIt exécute des services de suivi en arrière-plan pendant vos heures planifiées. Pour fonctionner correctement, l\'application nécessite les autorisations suivantes :\n\n• Localisation précise et approximative : Pour suivre votre itinéraire et enregistrer des points GPX.\n• Activité physique : Pour détecter les mouvements et optimiser le suivi en arrière-plan ainsi que l\'utilisation de la batterie.\n• Notifications : Pour afficher une notification persistante requise pour le service en arrière-plan et au premier plan.\n\nConsentez-vous à accorder ces autorisations ?</string>
     <string name="permission_disclosure_agree">Accepter</string>
     <string name="permission_disclosure_cancel">Annuler</string>
+
+    <!-- Background Location Warning -->
+    <string name="background_location_warning_title">Localisation en arrière-plan requise</string>
+    <string name="background_location_warning_message">Votre autorisation de localisation est actuellement définie sur \'Uniquement lors de l\'utilisation de l\'application\'. Pour que le suivi en arrière-plan fonctionne correctement, veuillez modifier l\'autorisation de localisation sur \'Toujours autoriser\'.</string>
+    <string name="grant_always_permission">Ouvrir les paramètres</string>
 </resources>

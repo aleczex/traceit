@@ -219,4 +219,9 @@
     <string name="permission_disclosure_message">O TraceIt executa serviços de rastreamento em segundo plano durante os horários agendados. Para funcionar corretamente, o aplicativo requer as seguintes permissões:\n\n• Localização precisa e aproximada: Para rastrear sua rota e gravar pontos GPX.\n• Atividade física: Para detectar movimento e otimizar o rastreamento em segundo plano e o uso da bateria.\n• Notificações: Para exibir uma notificação persistente necessária para a execução do serviço em segundo plano e primeiro plano.\n\nVocê concorda em conceder essas permissões?</string>
     <string name="permission_disclosure_agree">Concordo</string>
     <string name="permission_disclosure_cancel">Cancelar</string>
+
+    <!-- Background Location Warning -->
+    <string name="background_location_warning_title">Localização em segundo plano necessária</string>
+    <string name="background_location_warning_message">Sua permissão de localização está configurada atualmente como \'Durante o uso do app\'. Para que o rastreamento agendado em segundo plano funcione corretamente, altere a permissão de localização para \'Permitir o tempo todo\'.</string>
+    <string name="grant_always_permission">Abrir configurações</string>
 </resources>

@@ -219,4 +219,9 @@
     <string name="permission_disclosure_message">TraceIt runs background tracking services during your scheduled tracking times or active sessions. To operate correctly, the app requires the following permissions:\n\n• Precise &amp; Coarse Location: To track your route and record GPX track points.\n• Physical Activity: To detect movement and optimize background tracking and battery usage.\n• Notifications: To display a persistent service notification required for background and foreground service execution.\n\nDo you consent to granting these permissions?</string>
     <string name="permission_disclosure_agree">Agree</string>
     <string name="permission_disclosure_cancel">Cancel</string>
+
+    <!-- Background Location Warning -->
+    <string name="background_location_warning_title">Background Location Required</string>
+    <string name="background_location_warning_message">Your location permission is currently set to \'While using the app\'. For scheduled tracking in the background to work correctly and record GPS points when the app is closed, please change location permission to \'Allow all the time\' (\'Always\').</string>
+    <string name="grant_always_permission">Open Settings / Grant Always</string>
 </resources>
