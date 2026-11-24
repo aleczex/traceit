@@ -174,6 +174,10 @@
     <string name="track_too_short_to_crop">La ruta es demasiado corta para recortar</string>
     <string name="apply">Aplicar</string>
     <string name="new_crop_point">Nuevo punto límite</string>
+    <string name="new_start_time">Nuevo tiempo de inicio: %s</string>
+    <string name="new_end_time">Nuevo tiempo final: %s</string>
+    <string name="previous_point">Punto anterior</string>
+    <string name="next_point">Punto siguiente</string>
     <string name="track_saved_successfully">Ruta guardada correctamente</string>
     <string name="failed_to_save_track">Error al guardar la ruta: %s</string>
 

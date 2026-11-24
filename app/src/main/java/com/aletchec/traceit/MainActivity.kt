@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
@@ -959,19 +961,66 @@ fun TrackingScreen(
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        val currentPoint = currentCrop.originalPoints.getOrNull(currentCrop.cutIndex)
+                        val formattedTime = currentPoint?.time?.let { gpxManager.formatPointTime(it) } ?: "-"
+                        val timeLabel = if (currentCrop.type == CropType.START) {
+                            stringResource(R.string.new_start_time, formattedTime)
+                        } else {
+                            stringResource(R.string.new_end_time, formattedTime)
+                        }
+                        Text(
+                            text = timeLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        val maxIdx = (currentCrop.originalPoints.size - 1).coerceAtLeast(0)
-                        Slider(
-                            value = currentCrop.cutIndex.toFloat(),
-                            onValueChange = { newValue ->
-                                val newIdx = newValue.roundToInt().coerceIn(0, maxIdx)
-                                cropState = currentCrop.copy(cutIndex = newIdx)
-                            },
-                            valueRange = 0f..maxIdx.toFloat(),
-                            steps = if (maxIdx > 1) maxIdx - 1 else 0,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val newIdx = (currentCrop.cutIndex - 1).coerceIn(0, currentCrop.originalPoints.lastIndex)
+                                    cropState = currentCrop.copy(cutIndex = newIdx)
+                                },
+                                enabled = currentCrop.cutIndex > 0
+                            ) {
+                                Icon(
+                                    androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                    contentDescription = stringResource(R.string.previous_point)
+                                )
+                            }
+
+                            val maxIdx = (currentCrop.originalPoints.size - 1).coerceAtLeast(0)
+                            Slider(
+                                value = currentCrop.cutIndex.toFloat(),
+                                onValueChange = { newValue ->
+                                    val newIdx = newValue.roundToInt().coerceIn(0, maxIdx)
+                                    cropState = currentCrop.copy(cutIndex = newIdx)
+                                },
+                                valueRange = 0f..maxIdx.toFloat(),
+                                steps = if (maxIdx > 1) maxIdx - 1 else 0,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    val newIdx = (currentCrop.cutIndex + 1).coerceIn(0, currentCrop.originalPoints.lastIndex)
+                                    cropState = currentCrop.copy(cutIndex = newIdx)
+                                },
+                                enabled = currentCrop.cutIndex < currentCrop.originalPoints.lastIndex
+                            ) {
+                                Icon(
+                                    androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = stringResource(R.string.next_point)
+                                )
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
