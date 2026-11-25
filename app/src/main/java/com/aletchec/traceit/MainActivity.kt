@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -2384,10 +2385,14 @@ fun SavedTracksList(
                                 if (isCompactLandscape) {
                                     Spacer(modifier = Modifier.width(0.dp))
                                 }
-                                Button(onClick = {
+                                IconButton(onClick = {
                                     onSelectFile(file)
-                                }, modifier = if (isCompactLandscape) Modifier.weight(1f) else Modifier) {
-                                    Text(stringResource(R.string.load))
+                                }, modifier = if (isCompactLandscape) Modifier.weight(0.2f) else Modifier) {
+                                    Icon(
+                                        Icons.Default.FolderOpen,
+                                        contentDescription = stringResource(R.string.load),
+                                        tint = if (isLoaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
 
                                 Spacer(modifier = Modifier.width(4.dp))
